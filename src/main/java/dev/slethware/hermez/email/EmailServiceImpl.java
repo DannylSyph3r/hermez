@@ -70,7 +70,7 @@ public class EmailServiceImpl implements EmailService {
                                     <!-- Header with Gradient Background and Logo -->
                                     <tr>
                                         <td style="background: linear-gradient(135deg, #9F2B68 0%%, #6B2D5F 50%%, #431C53 100%%); padding: 50px 40px; text-align: center;">
-                                            <img src="https://hermez.one/email/hermez_mono.png" alt="Hermez" style="max-width: 120px; width: 120px; height: auto; display: block; margin: 0 auto;" />
+                                            <img src="https://hermez.one/email/hermez.png" alt="Hermez" style="max-width: 120px; width: 120px; height: auto; display: block; margin: 0 auto;" />
                                         </td>
                                     </tr>
                                     
