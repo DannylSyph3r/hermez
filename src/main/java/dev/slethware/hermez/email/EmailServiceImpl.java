@@ -67,10 +67,10 @@ public class EmailServiceImpl implements EmailService {
                             <td style="padding: 40px 20px;">
                                 <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);">
                                     
-                                    <!-- Header with Gradient Background -->
+                                    <!-- Header with Gradient Background and Logo -->
                                     <tr>
-                                        <td style="background: linear-gradient(135deg, #9F2B68 0%%, #6B2D5F 50%%, #431C53 100%%); padding: 60px 40px; text-align: center;">
-                                            <img src="https://hermez.one/email/hermez_banner.png" alt="Hermez" style="max-width: 280px; width: 100%%; height: auto; display: block; margin: 0 auto;" />
+                                        <td style="background: linear-gradient(135deg, #9F2B68 0%%, #6B2D5F 50%%, #431C53 100%%); padding: 50px 40px; text-align: center;">
+                                            <img src="https://hermez.one/email/hermez_mono.png" alt="Hermez" style="max-width: 120px; width: 120px; height: auto; display: block; margin: 0 auto;" />
                                         </td>
                                     </tr>
                                     
@@ -92,15 +92,15 @@ public class EmailServiceImpl implements EmailService {
                                             <!-- Features List -->
                                             <table role="presentation" style="width: 100%%; margin: 0 0 40px;">
                                                 <tr>
-                                                    <td style="padding: 16px 0;">
+                                                    <td style="padding: 14px 0;">
                                                         <table role="presentation" style="width: 100%%;">
                                                             <tr>
-                                                                <td style="width: 40px; vertical-align: top; padding-top: 3px;">
-                                                                    <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #9F2B68, #6B2D5F); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
-                                                                        <span style="color: white; font-size: 16px; font-weight: bold; line-height: 24px; display: block; text-align: center;">✓</span>
+                                                                <td style="width: 36px; vertical-align: middle;">
+                                                                    <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #9F2B68, #6B2D5F); border-radius: 4px; display: table; text-align: center;">
+                                                                        <span style="color: white; font-size: 14px; font-weight: bold; display: table-cell; vertical-align: middle;">✓</span>
                                                                     </div>
                                                                 </td>
-                                                                <td style="font-size: 17px; color: #1a1a1a; line-height: 1.6; font-weight: 500;">
+                                                                <td style="font-size: 17px; color: #1a1a1a; line-height: 1.5; font-weight: 500; vertical-align: middle;">
                                                                     Early access opportunities
                                                                 </td>
                                                             </tr>
@@ -108,15 +108,15 @@ public class EmailServiceImpl implements EmailService {
                                                     </td>
                                                 </tr>
                                                 <tr>
-                                                    <td style="padding: 16px 0;">
+                                                    <td style="padding: 14px 0;">
                                                         <table role="presentation" style="width: 100%%;">
                                                             <tr>
-                                                                <td style="width: 40px; vertical-align: top; padding-top: 3px;">
-                                                                    <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #9F2B68, #6B2D5F); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
-                                                                        <span style="color: white; font-size: 16px; font-weight: bold; line-height: 24px; display: block; text-align: center;">✓</span>
+                                                                <td style="width: 36px; vertical-align: middle;">
+                                                                    <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #9F2B68, #6B2D5F); border-radius: 4px; display: table; text-align: center;">
+                                                                        <span style="color: white; font-size: 14px; font-weight: bold; display: table-cell; vertical-align: middle;">✓</span>
                                                                     </div>
                                                                 </td>
-                                                                <td style="font-size: 17px; color: #1a1a1a; line-height: 1.6; font-weight: 500;">
+                                                                <td style="font-size: 17px; color: #1a1a1a; line-height: 1.5; font-weight: 500; vertical-align: middle;">
                                                                     Product updates and features
                                                                 </td>
                                                             </tr>
@@ -124,15 +124,15 @@ public class EmailServiceImpl implements EmailService {
                                                     </td>
                                                 </tr>
                                                 <tr>
-                                                    <td style="padding: 16px 0;">
+                                                    <td style="padding: 14px 0;">
                                                         <table role="presentation" style="width: 100%%;">
                                                             <tr>
-                                                                <td style="width: 40px; vertical-align: top; padding-top: 3px;">
-                                                                    <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #9F2B68, #6B2D5F); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
-                                                                        <span style="color: white; font-size: 16px; font-weight: bold; line-height: 24px; display: block; text-align: center;">✓</span>
+                                                                <td style="width: 36px; vertical-align: middle;">
+                                                                    <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #9F2B68, #6B2D5F); border-radius: 4px; display: table; text-align: center;">
+                                                                        <span style="color: white; font-size: 14px; font-weight: bold; display: table-cell; vertical-align: middle;">✓</span>
                                                                     </div>
                                                                 </td>
-                                                                <td style="font-size: 17px; color: #1a1a1a; line-height: 1.6; font-weight: 500;">
+                                                                <td style="font-size: 17px; color: #1a1a1a; line-height: 1.5; font-weight: 500; vertical-align: middle;">
                                                                     Launch announcements
                                                                 </td>
                                                             </tr>
@@ -142,10 +142,10 @@ public class EmailServiceImpl implements EmailService {
                                             </table>
                                             
                                             <!-- CTA Button -->
-                                            <table role="presentation" style="margin: 0 0 40px;">
+                                            <table role="presentation" style="margin: 0 0 40px; width: 100%%;">
                                                 <tr>
                                                     <td style="text-align: center;">
-                                                        <a href="https://hermez.one" style="display: inline-block; padding: 18px 48px; background: linear-gradient(135deg, #9F2B68, #6B2D5F); color: #ffffff; text-decoration: none; border-radius: 10px; font-size: 17px; font-weight: 600; box-shadow: 0 6px 20px rgba(159, 43, 104, 0.3); transition: all 0.3s;">
+                                                        <a href="https://hermez.one" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #9F2B68, #6B2D5F); color: #ffffff; text-decoration: none; border-radius: 10px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 16px rgba(159, 43, 104, 0.25);">
                                                             Visit Hermez →
                                                         </a>
                                                     </td>
@@ -166,28 +166,11 @@ public class EmailServiceImpl implements EmailService {
                                     <!-- Footer -->
                                     <tr>
                                         <td style="background: linear-gradient(135deg, #fafbfc 0%%, #f5f6f8 100%%); padding: 40px 40px; border-top: 1px solid #e8eaed;">
-                                            <!-- Icon -->
-                                            <div style="text-align: center; margin-bottom: 24px;">
-                                                <img src="https://hermez.one/email/hermez_mono.png" alt="Hermez" style="max-width: 56px; width: 100%%; height: auto; opacity: 0.5;" />
-                                            </div>
                                             
                                             <!-- Tagline -->
                                             <p style="margin: 0 0 28px; text-align: center; font-size: 15px; font-style: italic; color: #6B2D5F; font-weight: 500; letter-spacing: 0.3px;">
                                                 As above, so below. As local, so global.
                                             </p>
-                                            
-                                            <!-- Links -->
-                                            <table role="presentation" style="width: 100%%; margin: 0 0 24px;">
-                                                <tr>
-                                                    <td style="text-align: center;">
-                                                        <a href="https://hermez.one" style="color: #6B2D5F; text-decoration: none; font-size: 15px; margin: 0 16px; font-weight: 500;">Website</a>
-                                                        <span style="color: #d0d0d0; font-weight: 300;">|</span>
-                                                        <a href="https://github.com/hermez" style="color: #6B2D5F; text-decoration: none; font-size: 15px; margin: 0 16px; font-weight: 500;">GitHub</a>
-                                                        <span style="color: #d0d0d0; font-weight: 300;">|</span>
-                                                        <a href="https://hermez.one/docs" style="color: #6B2D5F; text-decoration: none; font-size: 15px; margin: 0 16px; font-weight: 500;">Docs</a>
-                                                    </td>
-                                                </tr>
-                                            </table>
                                             
                                             <!-- Copyright -->
                                             <p style="margin: 0 0 12px; text-align: center; font-size: 14px; color: #888888;">
