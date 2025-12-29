@@ -1,4 +1,4 @@
-package dev.slethware.hermez.mail;
+package dev.slethware.hermez.email;
 
 import reactor.core.publisher.Mono;
 

@@ -1,6 +1,6 @@
 package dev.slethware.hermez.waitlist;
 
-import dev.slethware.hermez.mail.EmailService;
+import dev.slethware.hermez.email.EmailService;
 import dev.slethware.hermez.waitlist.api.WaitlistRequest;
 import dev.slethware.hermez.waitlist.api.WaitlistResponse;
 import lombok.RequiredArgsConstructor;
