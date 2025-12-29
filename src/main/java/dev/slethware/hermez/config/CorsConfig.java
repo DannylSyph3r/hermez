@@ -8,7 +8,6 @@ import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-import java.util.Collections;
 
 @Configuration
 public class CorsConfig {
@@ -19,13 +18,10 @@ public class CorsConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Collections.singletonList("*"));
+        configuration.setAllowedOriginPatterns(Arrays.asList(allowedOrigins.split(",")));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setExposedHeaders(Arrays.asList(
-                "Authorization",
-                "Content-Disposition"
-        ));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Disposition"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
