@@ -34,7 +34,7 @@ public class EmailServiceImpl implements EmailService {
         return Mono.fromCallable(() -> {
                     try {
                         CreateEmailOptions email = CreateEmailOptions.builder()
-                                .from(fromEmail)
+                                .from("Hermez Team <" + fromEmail + ">")
                                 .to(toEmail)
                                 .subject("On Winged Feet")
                                 .html(buildEmailContent())
