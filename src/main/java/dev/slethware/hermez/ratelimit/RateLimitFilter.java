@@ -42,10 +42,11 @@ public class RateLimitFilter implements WebFilter {
         }
 
         InetSocketAddress remoteAddress = exchange.getRequest().getRemoteAddress();
-        if (remoteAddress != null) {
+        if (remoteAddress != null && remoteAddress.getAddress() != null) {
             return remoteAddress.getAddress().getHostAddress();
         }
 
+        log.warn("Unable to determine client IP, using 'unknown'");
         return "unknown";
     }
 }
