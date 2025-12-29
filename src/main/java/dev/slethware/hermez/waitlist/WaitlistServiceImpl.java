@@ -41,23 +41,12 @@ public class WaitlistServiceImpl implements WaitlistService {
                     return waitlistRepository.save(subscriber)
                             .doOnSuccess(saved -> {
                                 log.info("Successfully saved waitlist entry for: {}", saved.getEmail());
-                                emailService.sendWaitlistConfirmationEmail(saved.getEmail())
-                                        .subscribe(
-                                                unused -> log.info("Confirmation email sent to: {}", saved.getEmail()),
-                                                error -> log.error("Failed to send confirmation email to: {}", saved.getEmail(), error)
-                                        );
+                                emailService.sendWaitlistConfirmationEmail(saved.getEmail()).subscribe();
                             })
                             .map(saved -> new WaitlistResponse(
                                     saved.getEmail(),
                                     "You have successfully joined the waitlist!"
-                            ))
-                            .onErrorResume(e -> {
-                                log.error("Error during waitlist registration for: {}", normalizedEmail, e);
-                                return Mono.just(new WaitlistResponse(
-                                        normalizedEmail,
-                                        "You have successfully joined the waitlist!"
-                                ));
-                            });
+                            ));
                 });
     }
 }

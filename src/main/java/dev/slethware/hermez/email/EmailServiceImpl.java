@@ -21,8 +21,16 @@ public class EmailServiceImpl implements EmailService {
     @Value("${resend.from-email}")
     private String fromEmail;
 
+    @Value("${resend.enabled:false}")
+    private boolean emailEnabled;
+
     @Override
     public Mono<Void> sendWaitlistConfirmationEmail(String toEmail) {
+        if (!emailEnabled) {
+            log.info("Email service disabled - skipping confirmation email for: {}", toEmail);
+            return Mono.empty();
+        }
+
         return Mono.fromCallable(() -> {
                     try {
                         CreateEmailOptions email = CreateEmailOptions.builder()
