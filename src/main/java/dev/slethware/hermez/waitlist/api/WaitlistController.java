@@ -20,18 +20,18 @@ public class WaitlistController {
     private final WaitlistService waitlistService;
 
     @PostMapping("/subscribe")
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.OK)
     @Operation(
             summary = "Subscribe to the waitlist",
-            description = "Registers a user for the waitlist. Validates email and sends confirmation. Returns confirmation details."
+            description = "Registers a user for the waitlist with idempotent silent success pattern. Always returns success to prevent email enumeration."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Successfully subscribed to waitlist"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request data or email already registered"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Internal server error")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Successfully subscribed to waitlist"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request data"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "Too many requests - rate limit exceeded")
     })
     public Mono<ApiResponse<WaitlistResponse>> subscribe(@Valid @RequestBody WaitlistRequest request) {
         return waitlistService.register(request)
-                .map(response -> ApiResponseUtil.created("Confirmation successful", response));
+                .map(response -> ApiResponseUtil.successFull("Confirmation successful", response));
     }
 }

@@ -1,7 +1,5 @@
 package dev.slethware.hermez.waitlist;
 
-import dev.slethware.hermez.exception.BadRequestException;
-import dev.slethware.hermez.exception.InternalServerException;
 import dev.slethware.hermez.mail.EmailService;
 import dev.slethware.hermez.waitlist.api.WaitlistRequest;
 import dev.slethware.hermez.waitlist.api.WaitlistResponse;
@@ -22,17 +20,21 @@ public class WaitlistServiceImpl implements WaitlistService {
 
     @Override
     public Mono<WaitlistResponse> register(WaitlistRequest request) {
-        log.info("Processing waitlist registration for email: {}", request.email());
+        String normalizedEmail = request.email().toLowerCase().trim();
+        log.info("Processing waitlist registration for email: {}", normalizedEmail);
 
-        return waitlistRepository.existsByEmail(request.email())
+        return waitlistRepository.existsByEmail(normalizedEmail)
                 .flatMap(exists -> {
                     if (exists) {
-                        log.error("Email already registered: {}", request.email());
-                        return Mono.error(new BadRequestException("Email already registered"));
+                        log.info("Email already registered: {} - returning silent success", normalizedEmail);
+                        return Mono.just(new WaitlistResponse(
+                                normalizedEmail,
+                                "You have successfully joined the waitlist!"
+                        ));
                     }
 
                     Waitlist subscriber = Waitlist.builder()
-                            .email(request.email())
+                            .email(normalizedEmail)
                             .createdAt(LocalDateTime.now())
                             .build();
 
@@ -40,18 +42,21 @@ public class WaitlistServiceImpl implements WaitlistService {
                             .doOnSuccess(saved -> {
                                 log.info("Successfully saved waitlist entry for: {}", saved.getEmail());
                                 emailService.sendWaitlistConfirmationEmail(saved.getEmail())
-                                        .subscribe();
+                                        .subscribe(
+                                                unused -> log.info("Confirmation email sent to: {}", saved.getEmail()),
+                                                error -> log.error("Failed to send confirmation email to: {}", saved.getEmail(), error)
+                                        );
                             })
                             .map(saved -> new WaitlistResponse(
                                     saved.getEmail(),
                                     "You have successfully joined the waitlist!"
                             ))
-                            .onErrorMap(e -> {
-                                if (e instanceof BadRequestException) {
-                                    return e;
-                                }
-                                log.error("Error during waitlist registration: {}", e.getMessage(), e);
-                                return new InternalServerException("Failed to register for waitlist", e);
+                            .onErrorResume(e -> {
+                                log.error("Error during waitlist registration for: {}", normalizedEmail, e);
+                                return Mono.just(new WaitlistResponse(
+                                        normalizedEmail,
+                                        "You have successfully joined the waitlist!"
+                                ));
                             });
                 });
     }
