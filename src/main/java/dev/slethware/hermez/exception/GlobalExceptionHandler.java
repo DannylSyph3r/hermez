@@ -17,7 +17,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)
     public Mono<ResponseEntity<ErrorResponse>> handleBadRequestException(BadRequestException e) {
-        log.error(e.getMessage(), e);
+        log.error("Bad request: {}", e.getMessage(), e);
 
         ErrorResponse response = ErrorResponse.builder()
                 .message(e.getMessage())
@@ -25,12 +25,12 @@ public class GlobalExceptionHandler {
                 .statusCode(HttpStatus.BAD_REQUEST.value())
                 .build();
 
-        return Mono.just(new ResponseEntity<>(response, HttpStatus.BAD_REQUEST));
+        return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response));
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public Mono<ResponseEntity<ErrorResponse>> handleResourceNotFoundException(ResourceNotFoundException e) {
-        log.error(e.getMessage(), e);
+        log.error("Resource not found: {}", e.getMessage(), e);
 
         ErrorResponse response = ErrorResponse.builder()
                 .message(e.getMessage())
@@ -38,15 +38,15 @@ public class GlobalExceptionHandler {
                 .statusCode(HttpStatus.NOT_FOUND.value())
                 .build();
 
-        return Mono.just(new ResponseEntity<>(response, HttpStatus.NOT_FOUND));
+        return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).body(response));
     }
 
     @ExceptionHandler(UnauthorizedException.class)
-    public Mono<ResponseEntity<ErrorResponse>> handleUnauthorizedException(UnauthorizedException ex) {
-        log.error(ex.getMessage(), ex);
+    public Mono<ResponseEntity<ErrorResponse>> handleUnauthorizedException(UnauthorizedException e) {
+        log.error("Unauthorized: {}", e.getMessage(), e);
 
         ErrorResponse response = ErrorResponse.builder()
-                .message(ex.getMessage())
+                .message(e.getMessage())
                 .error("Unauthorized")
                 .statusCode(HttpStatus.UNAUTHORIZED.value())
                 .build();
@@ -56,7 +56,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InternalServerException.class)
     public Mono<ResponseEntity<ErrorResponse>> handleInternalServerException(InternalServerException e) {
-        log.error(e.getMessage(), e);
+        log.error("Internal server error: {}", e.getMessage(), e);
 
         ErrorResponse response = ErrorResponse.builder()
                 .message("Internal server error")
@@ -64,7 +64,7 @@ public class GlobalExceptionHandler {
                 .statusCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .build();
 
-        return Mono.just(new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR));
+        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response));
     }
 
     @ExceptionHandler(WebExchangeBindException.class)
@@ -81,12 +81,12 @@ public class GlobalExceptionHandler {
                 .statusCode(HttpStatus.BAD_REQUEST.value())
                 .build();
 
-        return Mono.just(new ResponseEntity<>(response, HttpStatus.BAD_REQUEST));
+        return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response));
     }
 
     @ExceptionHandler(Exception.class)
-    public Mono<ResponseEntity<ErrorResponse>> handleUnpredictableException(Exception ex) {
-        log.error(ex.getMessage(), ex);
+    public Mono<ResponseEntity<ErrorResponse>> handleUnexpectedException(Exception ex) {
+        log.error("Unexpected error occurred: {}", ex.getMessage(), ex);
 
         ErrorResponse response = ErrorResponse.builder()
                 .message("An unexpected error occurred")
@@ -94,6 +94,6 @@ public class GlobalExceptionHandler {
                 .statusCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .build();
 
-        return Mono.just(new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR));
+        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response));
     }
 }
