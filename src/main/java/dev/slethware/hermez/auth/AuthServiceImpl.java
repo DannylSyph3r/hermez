@@ -38,7 +38,7 @@ public class AuthServiceImpl implements AuthService {
     private static final String LOCKOUT_PREFIX = "lockout:login:";
 
     @Override
-    public Mono<AuthResponse> register(SignupRequest request) {
+    public Mono<Void> register(SignupRequest request) {
         String normalizedEmail = request.email().toLowerCase().trim();
         log.info("Processing registration for email: {}", normalizedEmail);
 
@@ -61,9 +61,9 @@ public class AuthServiceImpl implements AuthService {
                 })
                 .flatMap(savedUser -> {
                     log.info("User registered successfully: {}", savedUser.getEmail());
-                    return sendVerificationEmail(savedUser)
-                            .then(generateAuthResponse(savedUser));
-                });
+                    return sendVerificationEmail(savedUser);
+                })
+                .then();
     }
 
     @Override

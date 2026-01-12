@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public interface AuthService {
 
-    Mono<AuthResponse> register(SignupRequest request);
+    Mono<Void> register(SignupRequest request);
     Mono<AuthResponse> login(LoginRequest request);
     Mono<AuthResponse> refreshToken(RefreshTokenRequest request);
     Mono<Void> logout(UUID userId);

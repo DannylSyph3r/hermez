@@ -25,9 +25,9 @@ public class AuthController {
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Register a new user", description = "Creates a new user account and sends verification email")
-    public Mono<ApiResponse<AuthResponse>> register(@Valid @RequestBody SignupRequest request) {
+    public Mono<ApiResponse<Void>> register(@Valid @RequestBody SignupRequest request) {
         return authService.register(request)
-                .map(response -> ApiResponseUtil.created("Registration successful. Please verify your email.", response));
+                .then(Mono.just(ApiResponseUtil.createdVoid("Registration successful. Please verify your email.")));
     }
 
     @PostMapping("/login")
