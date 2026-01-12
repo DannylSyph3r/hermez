@@ -2,6 +2,7 @@ package dev.slethware.hermez.exception;
 
 import dev.slethware.hermez.common.models.response.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -54,6 +55,32 @@ public class GlobalExceptionHandler {
         return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response));
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleForbiddenException(ForbiddenException e) {
+        log.error("Forbidden: {}", e.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+                .message(e.getMessage())
+                .error("Forbidden")
+                .statusCode(HttpStatus.FORBIDDEN.value())
+                .build();
+
+        return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN).body(response));
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleTooManyRequestsException(TooManyRequestsException e) {
+        log.warn("Rate limit exceeded: {}", e.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+                .message(e.getMessage())
+                .error("Too Many Requests")
+                .statusCode(HttpStatus.TOO_MANY_REQUESTS.value())
+                .build();
+
+        return Mono.just(ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(response));
+    }
+
     @ExceptionHandler(InternalServerException.class)
     public Mono<ResponseEntity<ErrorResponse>> handleInternalServerException(InternalServerException e) {
         log.error("Internal server error: {}", e.getMessage(), e);
@@ -72,7 +99,7 @@ public class GlobalExceptionHandler {
         log.error("Validation error: {}", ex.getMessage());
 
         String errorMessage = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> error.getDefaultMessage())
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
                 .collect(Collectors.joining("; "));
 
         ErrorResponse response = ErrorResponse.builder()

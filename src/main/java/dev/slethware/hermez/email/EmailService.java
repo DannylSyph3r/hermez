@@ -5,4 +5,5 @@ import reactor.core.publisher.Mono;
 public interface EmailService {
 
     Mono<Void> sendWaitlistConfirmationEmail(String toEmail);
+    Mono<Void> sendVerificationEmail(String toEmail, String token);
 }

@@ -24,6 +24,7 @@ public class User {
     private String name;
     private String avatarUrl;
     private String tier;
+    private boolean emailVerified;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime lastLoginAt;
