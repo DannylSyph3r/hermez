@@ -2,6 +2,8 @@ package dev.slethware.hermez.auth;
 
 import dev.slethware.hermez.auth.api.*;
 import dev.slethware.hermez.auth.config.AuthProperties;
+import dev.slethware.hermez.auth.config.OAuthProperties;
+import dev.slethware.hermez.auth.oauth.OAuth2Handler;
 import dev.slethware.hermez.email.EmailService;
 import dev.slethware.hermez.exception.BadRequestException;
 import dev.slethware.hermez.exception.ForbiddenException;
@@ -31,6 +33,8 @@ public class AuthServiceImpl implements AuthService {
     private final EmailService emailService;
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final AuthProperties authProperties;
+    private final OAuth2Handler oauth2Handler;
+    private final OAuthProperties oauthProperties;
 
     private static final String VERIFICATION_TOKEN_PREFIX = "email_verification:";
     private static final String VERIFICATION_USER_PREFIX = "email_verification:user:";
@@ -91,6 +95,49 @@ public class AuthServiceImpl implements AuthService {
                             .then(userRepository.updateLastLoginAt(user.getId(), LocalDateTime.now()))
                             .then(generateAuthResponse(user));
                 });
+    }
+
+    @Override
+    public Mono<String> initiateGoogleOAuth() {
+        String authorizationUrl = oauthProperties.getGoogle().getAuthorizationUri() +
+                "?client_id=" + oauthProperties.getGoogle().getClientId() +
+                "&redirect_uri=" + oauthProperties.getGoogle().getRedirectUri() +
+                "&response_type=code" +
+                "&scope=openid%20email%20profile";
+
+        log.info("Initiating Google OAuth flow");
+        return Mono.just(authorizationUrl);
+    }
+
+    @Override
+    public Mono<AuthResponse> handleGoogleCallback(String code) {
+        if (code == null || code.isBlank()) {
+            return Mono.error(new BadRequestException("Authorization code is required"));
+        }
+
+        return oauth2Handler.handleGoogleCallback(code)
+                .flatMap(this::generateAuthResponse);
+    }
+
+    @Override
+    public Mono<String> initiateGitHubOAuth() {
+        String authorizationUrl = oauthProperties.getGithub().getAuthorizationUri() +
+                "?client_id=" + oauthProperties.getGithub().getClientId() +
+                "&redirect_uri=" + oauthProperties.getGithub().getRedirectUri() +
+                "&scope=user:email";
+
+        log.info("Initiating GitHub OAuth flow");
+        return Mono.just(authorizationUrl);
+    }
+
+    @Override
+    public Mono<AuthResponse> handleGitHubCallback(String code) {
+        if (code == null || code.isBlank()) {
+            return Mono.error(new BadRequestException("Authorization code is required"));
+        }
+
+        return oauth2Handler.handleGitHubCallback(code)
+                .flatMap(this::generateAuthResponse);
     }
 
     @Override

@@ -31,6 +31,7 @@ public class SecurityConfig {
                         .pathMatchers("/api/v1/auth/refresh").permitAll()
                         .pathMatchers("/api/v1/auth/verify-email").permitAll()
                         .pathMatchers("/api/v1/auth/resend-verification").permitAll()
+                        .pathMatchers("api/v1/auth/oauth/**").permitAll()
                         .pathMatchers("/api/v1/waitlist/**").permitAll()
 
                         // Documentation

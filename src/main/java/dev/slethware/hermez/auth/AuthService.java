@@ -16,4 +16,8 @@ public interface AuthService {
     Mono<Void> logout(UUID userId);
     Mono<Void> verifyEmail(String token);
     Mono<Void> resendVerificationEmail(String email);
+    Mono<String> initiateGoogleOAuth();
+    Mono<AuthResponse> handleGoogleCallback(String code);
+    Mono<String> initiateGitHubOAuth();
+    Mono<AuthResponse> handleGitHubCallback(String code);
 }

@@ -8,9 +8,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.security.Principal;
 import java.util.UUID;
 
@@ -69,5 +71,43 @@ public class AuthController {
     public Mono<ApiResponse<Void>> resendVerification(@RequestParam String email) {
         return authService.resendVerificationEmail(email)
                 .then(Mono.just(ApiResponseUtil.successFullVoid("If the email exists and is unverified, a verification email has been sent")));
+    }
+
+    // Add these OAuth endpoints to the existing AuthController class
+
+    @GetMapping("/oauth/google")
+    @Operation(summary = "Initiate Google OAuth", description = "Redirects to Google OAuth consent screen")
+    public Mono<Void> initiateGoogleOAuth(ServerHttpResponse response) {
+        return authService.initiateGoogleOAuth()
+                .flatMap(authorizationUrl -> {
+                    response.setStatusCode(HttpStatus.FOUND);
+                    response.getHeaders().setLocation(URI.create(authorizationUrl));
+                    return response.setComplete();
+                });
+    }
+
+    @GetMapping("/oauth/google/callback")
+    @Operation(summary = "Google OAuth callback", description = "Handles OAuth callback from Google and returns tokens")
+    public Mono<ApiResponse<AuthResponse>> handleGoogleCallback(@RequestParam String code) {
+        return authService.handleGoogleCallback(code)
+                .map(response -> ApiResponseUtil.successFull("Google authentication successful", response));
+    }
+
+    @GetMapping("/oauth/github")
+    @Operation(summary = "Initiate GitHub OAuth", description = "Redirects to GitHub OAuth consent screen")
+    public Mono<Void> initiateGitHubOAuth(ServerHttpResponse response) {
+        return authService.initiateGitHubOAuth()
+                .flatMap(authorizationUrl -> {
+                    response.setStatusCode(HttpStatus.FOUND);
+                    response.getHeaders().setLocation(URI.create(authorizationUrl));
+                    return response.setComplete();
+                });
+    }
+
+    @GetMapping("/oauth/github/callback")
+    @Operation(summary = "GitHub OAuth callback", description = "Handles OAuth callback from GitHub and returns tokens")
+    public Mono<ApiResponse<AuthResponse>> handleGitHubCallback(@RequestParam String code) {
+        return authService.handleGitHubCallback(code)
+                .map(response -> ApiResponseUtil.successFull("GitHub authentication successful", response));
     }
 }
