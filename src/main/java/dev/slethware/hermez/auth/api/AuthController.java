@@ -73,7 +73,32 @@ public class AuthController {
                 .then(Mono.just(ApiResponseUtil.successFullVoid("If the email exists and is unverified, a verification email has been sent")));
     }
 
-    // Add these OAuth endpoints to the existing AuthController class
+    @PostMapping("/forgot-password")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Request password reset", description = "Sends a password reset link to the user's email if the account exists")
+    public Mono<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        return authService.forgotPassword(request)
+                .then(Mono.just(ApiResponseUtil.successFullVoid("A password reset link has been sent to your email")));
+    }
+
+    @GetMapping("/validate-reset-token")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Validate password reset token", description = "Checks if the provided password reset token is valid and not expired")
+    public Mono<ApiResponse<Void>> validateResetToken(
+            @RequestParam String email,
+            @RequestParam String token
+    ) {
+        return authService.validateResetToken(email, token)
+                .then(Mono.just(ApiResponseUtil.successFullVoid("Token is valid")));
+    }
+
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Reset user password", description = "Resets the password for a user using a valid reset token")
+    public Mono<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        return authService.resetPassword(request)
+                .then(Mono.just(ApiResponseUtil.successFullVoid("Password has been reset successfully")));
+    }
 
     @GetMapping("/oauth/google")
     @Operation(summary = "Initiate Google OAuth", description = "Redirects to Google OAuth consent screen")

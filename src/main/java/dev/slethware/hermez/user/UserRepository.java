@@ -16,9 +16,6 @@ public interface UserRepository extends ReactiveCrudRepository<User, UUID> {
 
     Mono<Boolean> existsByEmail(String email);
 
-    @Query("SELECT * FROM users WHERE id = :id FOR UPDATE")
-    Mono<User> findByIdForUpdate(UUID id);
-
     @Modifying
     @Query("UPDATE users SET last_login_at = :lastLoginAt WHERE id = :id")
     Mono<Void> updateLastLoginAt(UUID id, LocalDateTime lastLoginAt);
@@ -26,4 +23,8 @@ public interface UserRepository extends ReactiveCrudRepository<User, UUID> {
     @Modifying
     @Query("UPDATE users SET email_verified = true WHERE id = :id")
     Mono<Void> verifyEmail(UUID id);
+
+    @Modifying
+    @Query("UPDATE users SET password_hash = :passwordHash WHERE id = :id")
+    Mono<Void> updatePassword(UUID id, String passwordHash);
 }

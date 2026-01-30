@@ -38,6 +38,8 @@ public class AuthServiceImpl implements AuthService {
 
     private static final String VERIFICATION_TOKEN_PREFIX = "email_verification:";
     private static final String VERIFICATION_USER_PREFIX = "email_verification:user:";
+    private static final String RESET_TOKEN_PREFIX = "password_reset:";
+    private static final String RESET_USER_PREFIX = "password_reset:user:";
     private static final String RATE_LIMIT_PREFIX = "ratelimit:login:";
     private static final String LOCKOUT_PREFIX = "lockout:login:";
 
@@ -190,6 +192,80 @@ public class AuthServiceImpl implements AuthService {
                 .then();
     }
 
+    @Override
+    public Mono<Void> forgotPassword(ForgotPasswordRequest request) {
+        String normalizedEmail = request.email().toLowerCase().trim();
+        log.info("Processing forgot password request for email: {}", normalizedEmail);
+
+        return userRepository.findByEmail(normalizedEmail)
+                .flatMap(user -> {
+                    String userKey = RESET_USER_PREFIX + user.getId();
+
+                    return redisTemplate.opsForValue().get(userKey)
+                            .flatMap(oldToken -> redisTemplate.delete(RESET_TOKEN_PREFIX + oldToken))
+                            .then(sendPasswordResetEmail(user));
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.info("Password reset requested for non-existent email: {}", normalizedEmail);
+                    return Mono.empty();
+                }))
+                .then();
+    }
+
+    @Override
+    public Mono<Void> validateResetToken(String email, String token) {
+        String normalizedEmail = email.toLowerCase().trim();
+        log.info("Validating reset token for email: {}", normalizedEmail);
+
+        String tokenKey = RESET_TOKEN_PREFIX + token;
+
+        return redisTemplate.opsForValue().get(tokenKey)
+                .switchIfEmpty(Mono.error(new BadRequestException("Invalid or expired reset token")))
+                .flatMap(userIdStr -> {
+                    UUID userId = UUID.fromString(userIdStr);
+
+                    return userRepository.findById(userId)
+                            .switchIfEmpty(Mono.error(new BadRequestException("User not found")))
+                            .flatMap(user -> {
+                                if (!user.getEmail().equals(normalizedEmail)) {
+                                    return Mono.error(new BadRequestException("Token does not belong to this user"));
+                                }
+                                return Mono.empty();
+                            });
+                });
+    }
+
+    @Override
+    public Mono<Void> resetPassword(ResetPasswordRequest request) {
+        String normalizedEmail = request.email().toLowerCase().trim();
+        log.info("Resetting password for email: {}", normalizedEmail);
+
+        String tokenKey = RESET_TOKEN_PREFIX + request.token();
+
+        return redisTemplate.opsForValue().get(tokenKey)
+                .switchIfEmpty(Mono.error(new BadRequestException("Invalid or expired reset token")))
+                .flatMap(userIdStr -> {
+                    UUID userId = UUID.fromString(userIdStr);
+
+                    return userRepository.findById(userId)
+                            .switchIfEmpty(Mono.error(new BadRequestException("User not found")))
+                            .flatMap(user -> {
+                                if (!user.getEmail().equals(normalizedEmail)) {
+                                    return Mono.error(new BadRequestException("Token does not belong to this user"));
+                                }
+
+                                String newPasswordHash = passwordEncoder.encode(request.newPassword());
+
+                                String userKey = RESET_USER_PREFIX + userId;
+
+                                return redisTemplate.delete(tokenKey)
+                                        .then(redisTemplate.delete(userKey))
+                                        .then(userRepository.updatePassword(userId, newPasswordHash))
+                                        .doOnSuccess(v -> log.info("Password reset successfully for: {}", normalizedEmail));
+                            });
+                });
+    }
+
     private Mono<Void> sendVerificationEmail(User user) {
         String token = UUID.randomUUID().toString();
         String tokenKey = VERIFICATION_TOKEN_PREFIX + token;
@@ -201,6 +277,18 @@ public class AuthServiceImpl implements AuthService {
                 .then(redisTemplate.opsForValue().set(tokenKey, user.getId().toString(), ttl))
                 .then(redisTemplate.opsForValue().set(userKey, token, ttl))
                 .then(emailService.sendVerificationEmail(user.getEmail(), token));
+    }
+
+    private Mono<Void> sendPasswordResetEmail(User user) {
+        String token = UUID.randomUUID().toString();
+        String tokenKey = RESET_TOKEN_PREFIX + token;
+        String userKey = RESET_USER_PREFIX + user.getId();
+
+        return redisTemplate.opsForValue()
+                .set(tokenKey, user.getId().toString(), Duration.ofMinutes(5))
+                .then(redisTemplate.opsForValue().set(userKey, token, Duration.ofMinutes(5)))
+                .then(emailService.sendPasswordResetEmail(user.getEmail(), token))
+                .doOnSuccess(v -> log.info("Password reset email sent to: {}", user.getEmail()));
     }
 
     private Mono<AuthResponse> generateAuthResponse(User user) {

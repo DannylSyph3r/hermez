@@ -31,7 +31,10 @@ public class SecurityConfig {
                         .pathMatchers("/api/v1/auth/refresh").permitAll()
                         .pathMatchers("/api/v1/auth/verify-email").permitAll()
                         .pathMatchers("/api/v1/auth/resend-verification").permitAll()
-                        .pathMatchers("api/v1/auth/oauth/**").permitAll()
+                        .pathMatchers("/api/v1/auth/forgot-password").permitAll()
+                        .pathMatchers("/api/v1/auth/validate-reset-token").permitAll()
+                        .pathMatchers("/api/v1/auth/reset-password").permitAll()
+                        .pathMatchers("/api/v1/auth/oauth/**").permitAll()
                         .pathMatchers("/api/v1/waitlist/**").permitAll()
 
                         // Documentation
