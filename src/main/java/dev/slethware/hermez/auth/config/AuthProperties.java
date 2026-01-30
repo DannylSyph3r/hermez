@@ -10,6 +10,7 @@ public class AuthProperties {
     private Jwt jwt = new Jwt();
     private RateLimit rateLimit = new RateLimit();
     private long verificationTokenExpiration = 86400;
+    private long passwordResetTokenExpiration = 300;
 
     @Data
     public static class Jwt {
