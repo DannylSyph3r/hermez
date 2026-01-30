@@ -4,6 +4,8 @@ import dev.slethware.hermez.auth.api.AuthResponse;
 import dev.slethware.hermez.auth.api.LoginRequest;
 import dev.slethware.hermez.auth.api.RefreshTokenRequest;
 import dev.slethware.hermez.auth.api.SignupRequest;
+import dev.slethware.hermez.auth.api.ForgotPasswordRequest;
+import dev.slethware.hermez.auth.api.ResetPasswordRequest;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -20,4 +22,7 @@ public interface AuthService {
     Mono<AuthResponse> handleGoogleCallback(String code);
     Mono<String> initiateGitHubOAuth();
     Mono<AuthResponse> handleGitHubCallback(String code);
+    Mono<Void> forgotPassword(ForgotPasswordRequest request);
+    Mono<Void> validateResetToken(String email, String token);
+    Mono<Void> resetPassword(ResetPasswordRequest request);
 }
