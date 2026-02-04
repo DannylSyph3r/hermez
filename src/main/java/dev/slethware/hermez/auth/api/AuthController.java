@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -25,11 +26,14 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "Register a new user", description = "Creates a new user account and sends verification email")
-    public Mono<ApiResponse<Void>> register(@Valid @RequestBody SignupRequest request) {
-        return authService.register(request)
-                .then(Mono.just(ApiResponseUtil.createdVoid("Registration successful. Please verify your email.")));
+    public Mono<ApiResponse<Void>> register(
+            @Valid @RequestBody SignupRequest request,
+            ServerHttpRequest httpRequest
+    ) {
+        return authService.register(request, httpRequest)
+                .then(Mono.just(ApiResponseUtil.successFullVoid("Registration successful. Please check your email to verify your account.")));
     }
 
     @PostMapping("/login")

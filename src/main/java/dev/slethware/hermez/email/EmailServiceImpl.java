@@ -117,6 +117,34 @@ public class EmailServiceImpl implements EmailService {
                 .then();
     }
 
+    @Override
+    public Mono<Void> sendAccountExistsEmail(String toEmail, String loginUrl) {
+        if (!emailEnabled) {
+            log.info("Email service disabled - skipping account exists email for: {}", toEmail);
+            return Mono.empty();
+        }
+
+        return Mono.fromCallable(() -> {
+                    try {
+                        CreateEmailOptions email = CreateEmailOptions.builder()
+                                .from("Hermez Security <" + fromEmail + ">")
+                                .to(toEmail)
+                                .subject("Account Registration Attempt")
+                                .html(buildAccountExistsEmailContent(loginUrl))
+                                .build();
+
+                        CreateEmailResponse response = resend.emails().send(email);
+                        log.info("Account exists email sent to: {} with ID: {}", toEmail, response.getId());
+                        return null;
+                    } catch (ResendException e) {
+                        log.error("Failed to send account exists email to: {}", toEmail, e);
+                        throw new RuntimeException("Failed to send email", e);
+                    }
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .then();
+    }
+
     private String buildWaitlistEmailContent() {
         return """
                 <!DOCTYPE html>
@@ -219,5 +247,44 @@ public class EmailServiceImpl implements EmailService {
                 </body>
                 </html>
                 """.formatted(resetUrl);
+    }
+
+    private String buildAccountExistsEmailContent(String loginUrl) {
+        return """
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Account Registration Attempt</title>
+                </head>
+                <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f8f9fa;">
+                    <table role="presentation" style="width: 100%%; border-collapse: collapse; background-color: #f8f9fa;">
+                        <tr>
+                            <td style="padding: 40px 20px;">
+                                <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
+                                    <tr>
+                                        <td style="background: linear-gradient(135deg, #6B2D5F 0%%, #9F2B68 100%%); padding: 40px 40px 30px;">
+                                            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">Account Registration Attempt</h1>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 40px;">
+                                            <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">Someone attempted to create a new account using this email address.</p>
+                                            <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">An account with this email already exists. If this was you, please log in to your existing account:</p>
+                                            <a href="%s" style="display: inline-block; background: linear-gradient(135deg, #6B2D5F 0%%, #9F2B68 100%%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">Log In to Your Account</a>
+                                            <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 30px 0 0;">If you forgot your password, you can reset it from the login page.</p>
+                                            <p style="color: #d32f2f; font-size: 14px; line-height: 1.6; margin: 20px 0 0; padding: 15px; background-color: #ffebee; border-left: 4px solid #d32f2f; border-radius: 4px;">
+                                                <strong>Security Notice:</strong> If you did not attempt to register, please ensure your account is secure. Someone may have your email address.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </body>
+                </html>
+                """.formatted(loginUrl);
     }
 }

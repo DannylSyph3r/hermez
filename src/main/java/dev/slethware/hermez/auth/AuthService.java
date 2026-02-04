@@ -6,13 +6,14 @@ import dev.slethware.hermez.auth.api.RefreshTokenRequest;
 import dev.slethware.hermez.auth.api.SignupRequest;
 import dev.slethware.hermez.auth.api.ForgotPasswordRequest;
 import dev.slethware.hermez.auth.api.ResetPasswordRequest;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
 public interface AuthService {
 
-    Mono<Void> register(SignupRequest request);
+    Mono<Void> register(SignupRequest request, ServerHttpRequest httpRequest);
     Mono<AuthResponse> login(LoginRequest request);
     Mono<AuthResponse> refreshToken(RefreshTokenRequest request);
     Mono<Void> logout(UUID userId);

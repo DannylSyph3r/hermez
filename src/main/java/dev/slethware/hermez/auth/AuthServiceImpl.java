@@ -4,6 +4,7 @@ import dev.slethware.hermez.auth.api.*;
 import dev.slethware.hermez.auth.config.AuthProperties;
 import dev.slethware.hermez.auth.config.OAuthProperties;
 import dev.slethware.hermez.auth.oauth.OAuth2Handler;
+import dev.slethware.hermez.common.util.FrontendUrlResolver;
 import dev.slethware.hermez.email.EmailService;
 import dev.slethware.hermez.exception.BadRequestException;
 import dev.slethware.hermez.exception.ForbiddenException;
@@ -14,6 +15,7 @@ import dev.slethware.hermez.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -35,6 +37,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthProperties authProperties;
     private final OAuth2Handler oauth2Handler;
     private final OAuthProperties oauthProperties;
+    private final FrontendUrlResolver frontendUrlResolver;
 
     private static final String VERIFICATION_TOKEN_PREFIX = "email_verification:";
     private static final String VERIFICATION_USER_PREFIX = "email_verification:user:";
@@ -44,30 +47,29 @@ public class AuthServiceImpl implements AuthService {
     private static final String LOCKOUT_PREFIX = "lockout:login:";
 
     @Override
-    public Mono<Void> register(SignupRequest request) {
+    public Mono<Void> register(SignupRequest request, ServerHttpRequest httpRequest) {
         String normalizedEmail = request.email().toLowerCase().trim();
         log.info("Processing registration for email: {}", normalizedEmail);
+
+        String loginUrl = frontendUrlResolver.getLoginUrl(httpRequest);
 
         return userRepository.existsByEmail(normalizedEmail)
                 .flatMap(exists -> {
                     if (exists) {
-                        return Mono.error(new BadRequestException("Email already registered"));
+                        log.info("Registration attempt for existing email: {}", normalizedEmail);
+                        return emailService.sendAccountExistsEmail(normalizedEmail, loginUrl);
                     }
 
-                    User user = User.builder()
-                            .email(normalizedEmail)
-                            .name(request.name())
-                            .passwordHash(passwordEncoder.encode(request.password()))
-                            .tier("free")
-                            .emailVerified(false)
-                            .createdAt(LocalDateTime.now())
-                            .build();
+                    User newUser = new User();
+                    newUser.setName(request.name());
+                    newUser.setEmail(normalizedEmail);
+                    newUser.setPasswordHash(passwordEncoder.encode(request.password()));
+                    newUser.setEmailVerified(false);
 
-                    return userRepository.save(user);
-                })
-                .flatMap(savedUser -> {
-                    log.info("User registered successfully: {}", savedUser.getEmail());
-                    return sendVerificationEmail(savedUser);
+                    return userRepository.save(newUser)
+                            .flatMap(savedUser -> sendVerificationEmail(savedUser)
+                                    .doOnSuccess(v -> log.info("User registered successfully: {}", savedUser.getEmail()))
+                            );
                 })
                 .then();
     }
