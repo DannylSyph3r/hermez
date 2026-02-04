@@ -67,7 +67,7 @@ public class AuthServiceImpl implements AuthService {
                     newUser.setEmailVerified(false);
 
                     return userRepository.save(newUser)
-                            .flatMap(savedUser -> sendVerificationEmail(savedUser)
+                            .flatMap(savedUser -> sendVerificationEmail(savedUser, httpRequest)
                                     .doOnSuccess(v -> log.info("User registered successfully: {}", savedUser.getEmail()))
                             );
                 })
@@ -180,7 +180,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Mono<Void> resendVerificationEmail(String email) {
+    public Mono<Void> resendVerificationEmail(String email, ServerHttpRequest httpRequest) {
         String normalizedEmail = email.toLowerCase().trim();
 
         return userRepository.findByEmail(normalizedEmail)
@@ -189,13 +189,13 @@ public class AuthServiceImpl implements AuthService {
                     if (user.isEmailVerified()) {
                         return Mono.empty();
                     }
-                    return sendVerificationEmail(user);
+                    return sendVerificationEmail(user, httpRequest);
                 })
                 .then();
     }
 
     @Override
-    public Mono<Void> forgotPassword(ForgotPasswordRequest request) {
+    public Mono<Void> forgotPassword(ForgotPasswordRequest request, ServerHttpRequest httpRequest) {
         String normalizedEmail = request.email().toLowerCase().trim();
         log.info("Processing forgot password request for email: {}", normalizedEmail);
 
@@ -204,7 +204,7 @@ public class AuthServiceImpl implements AuthService {
                     log.info("Password reset requested for non-existent email: {}", normalizedEmail);
                     return Mono.empty();
                 }))
-                .flatMap(this::sendPasswordResetEmail)
+                .flatMap(user -> sendPasswordResetEmail(user, httpRequest))
                 .then();
     }
 
@@ -262,31 +262,31 @@ public class AuthServiceImpl implements AuthService {
                 });
     }
 
-    private Mono<Void> sendVerificationEmail(User user) {
+    private Mono<Void> sendVerificationEmail(User user, ServerHttpRequest httpRequest) {
         String token = UUID.randomUUID().toString();
         String tokenKey = VERIFICATION_TOKEN_PREFIX + token;
-        String userKey = VERIFICATION_USER_PREFIX + user.getId().toString();
-        Duration ttl = Duration.ofSeconds(authProperties.getVerificationTokenExpiration());
+        String userKey = VERIFICATION_USER_PREFIX + user.getId();
 
-        return redisTemplate.opsForValue().get(userKey)
-                .flatMap(oldToken -> redisTemplate.delete(VERIFICATION_TOKEN_PREFIX + oldToken))
-                .then(redisTemplate.opsForValue().set(tokenKey, user.getId().toString(), ttl))
-                .then(redisTemplate.opsForValue().set(userKey, token, ttl))
-                .then(emailService.sendVerificationEmail(user.getEmail(), token))
+        String verificationUrl = frontendUrlResolver.getFrontendUrl(httpRequest)
+                + "/verify-email?token=" + token;
+
+        return redisTemplate.opsForValue().set(tokenKey, user.getId().toString(), Duration.ofHours(24))
+                .then(redisTemplate.opsForValue().set(userKey, token, Duration.ofHours(24)))
+                .then(emailService.sendVerificationEmail(user.getEmail(), verificationUrl))
                 .doOnSuccess(v -> log.info("Verification email sent to: {}", user.getEmail()));
     }
 
-    private Mono<Void> sendPasswordResetEmail(User user) {
+    private Mono<Void> sendPasswordResetEmail(User user, ServerHttpRequest httpRequest) {
         String token = UUID.randomUUID().toString();
         String tokenKey = RESET_TOKEN_PREFIX + token;
-        String userKey = RESET_USER_PREFIX + user.getId().toString();
-        Duration ttl = Duration.ofSeconds(authProperties.getPasswordResetTokenExpiration());
+        String userKey = RESET_USER_PREFIX + user.getId();
 
-        return redisTemplate.opsForValue().get(userKey)
-                .flatMap(oldToken -> redisTemplate.delete(RESET_TOKEN_PREFIX + oldToken))
-                .then(redisTemplate.opsForValue().set(tokenKey, user.getId().toString(), Duration.ofMinutes(5)))
-                .then(redisTemplate.opsForValue().set(userKey, token, ttl))
-                .then(emailService.sendPasswordResetEmail(user.getEmail(), token))
+        String resetUrl = frontendUrlResolver.getFrontendUrl(httpRequest)
+                + "/reset-password?token=" + token;
+
+        return redisTemplate.opsForValue().set(tokenKey, user.getId().toString(), Duration.ofMinutes(5))
+                .then(redisTemplate.opsForValue().set(userKey, token, Duration.ofMinutes(5)))
+                .then(emailService.sendPasswordResetEmail(user.getEmail(), resetUrl))
                 .doOnSuccess(v -> log.info("Password reset email sent to: {}", user.getEmail()));
     }
 

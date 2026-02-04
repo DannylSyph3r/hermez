@@ -24,9 +24,6 @@ public class EmailServiceImpl implements EmailService {
     @Value("${resend.enabled:false}")
     private boolean emailEnabled;
 
-    @Value("${app.base-url:https://hermez.one}")
-    private String baseUrl;
-
     @Override
     public Mono<Void> sendWaitlistConfirmationEmail(String toEmail) {
         if (!emailEnabled) {
@@ -56,17 +53,15 @@ public class EmailServiceImpl implements EmailService {
     }
 
     @Override
-    public Mono<Void> sendVerificationEmail(String toEmail, String token) {
+    public Mono<Void> sendVerificationEmail(String toEmail, String verificationUrl) {
         if (!emailEnabled) {
             log.info("Email service disabled - skipping verification email for: {}", toEmail);
-            log.info("Verification token for {}: {}", toEmail, token);
+            log.info("Verification URL for {}: {}", toEmail, verificationUrl);
             return Mono.empty();
         }
 
         return Mono.fromCallable(() -> {
                     try {
-                        String verificationUrl = baseUrl + "/api/v1/auth/verify-email?token=" + token;
-
                         CreateEmailOptions email = CreateEmailOptions.builder()
                                 .from("Hermez <" + fromEmail + ">")
                                 .to(toEmail)
@@ -87,17 +82,15 @@ public class EmailServiceImpl implements EmailService {
     }
 
     @Override
-    public Mono<Void> sendPasswordResetEmail(String toEmail, String token) {
+    public Mono<Void> sendPasswordResetEmail(String toEmail, String resetUrl) {
         if (!emailEnabled) {
             log.info("Email service disabled - skipping password reset email for: {}", toEmail);
-            log.info("Password reset token for {}: {}", toEmail, token);
+            log.info("Password reset URL for {}: {}", toEmail, resetUrl);
             return Mono.empty();
         }
 
         return Mono.fromCallable(() -> {
                     try {
-                        String resetUrl = baseUrl + "/reset-password?token=" + token;
-
                         CreateEmailOptions email = CreateEmailOptions.builder()
                                 .from("Hermez <" + fromEmail + ">")
                                 .to(toEmail)

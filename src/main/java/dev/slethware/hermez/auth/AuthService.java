@@ -18,12 +18,12 @@ public interface AuthService {
     Mono<AuthResponse> refreshToken(RefreshTokenRequest request);
     Mono<Void> logout(UUID userId);
     Mono<Void> verifyEmail(String token);
-    Mono<Void> resendVerificationEmail(String email);
+    Mono<Void> resendVerificationEmail(String email, ServerHttpRequest httpRequest);
     Mono<String> initiateGoogleOAuth();
     Mono<AuthResponse> handleGoogleCallback(String code);
     Mono<String> initiateGitHubOAuth();
     Mono<AuthResponse> handleGitHubCallback(String code);
-    Mono<Void> forgotPassword(ForgotPasswordRequest request);
+    Mono<Void> forgotPassword(ForgotPasswordRequest request, ServerHttpRequest httpRequest);
     Mono<Void> validateResetToken(String email, String token);
     Mono<Void> resetPassword(ResetPasswordRequest request);
 }

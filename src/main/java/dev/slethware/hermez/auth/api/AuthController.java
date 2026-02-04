@@ -72,17 +72,20 @@ public class AuthController {
     @PostMapping("/resend-verification")
     @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "Resend verification email", description = "Sends a new verification email")
-    public Mono<ApiResponse<Void>> resendVerification(@RequestParam String email) {
-        return authService.resendVerificationEmail(email)
+    public Mono<ApiResponse<Void>> resendVerification(@RequestParam String email, ServerHttpRequest httpRequest
+    ) {
+        return authService.resendVerificationEmail(email, httpRequest)
                 .then(Mono.just(ApiResponseUtil.successFullVoid("If the email exists and is unverified, a verification email has been sent")));
     }
 
     @PostMapping("/forgot-password")
     @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "Request password reset", description = "Sends a password reset link to the user's email if the account exists")
-    public Mono<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        return authService.forgotPassword(request)
-                .then(Mono.just(ApiResponseUtil.successFullVoid("A password reset link has been sent to your email")));
+    public Mono<ApiResponse<Void>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request, ServerHttpRequest httpRequest
+    ) {
+        return authService.forgotPassword(request, httpRequest)
+                .then(Mono.just(ApiResponseUtil.successFullVoid("If your email is registered, you will receive a password reset link")));
     }
 
     @GetMapping("/validate-reset-token")
