@@ -3,6 +3,7 @@ package dev.slethware.hermez.auth.api;
 import dev.slethware.hermez.auth.AuthService;
 import dev.slethware.hermez.common.models.response.ApiResponse;
 import dev.slethware.hermez.common.util.ApiResponseUtil;
+import dev.slethware.hermez.common.util.FrontendUrlResolver;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -14,8 +15,12 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.UUID;
+
+import static reactor.netty.http.HttpConnectionLiveness.log;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -24,6 +29,7 @@ import java.util.UUID;
 public class AuthController {
 
     private final AuthService authService;
+    private final FrontendUrlResolver frontendUrlResolver;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.OK)
@@ -119,10 +125,15 @@ public class AuthController {
     }
 
     @GetMapping("/oauth/google/callback")
-    @Operation(summary = "Google OAuth callback", description = "Handles OAuth callback from Google and returns tokens")
-    public Mono<ApiResponse<AuthResponse>> handleGoogleCallback(@RequestParam String code) {
+    @Operation(summary = "Google OAuth callback", description = "Handles OAuth callback from Google and redirects to frontend")
+    public Mono<Void> handleGoogleCallback(
+            @RequestParam String code,
+            ServerHttpRequest httpRequest,
+            ServerHttpResponse response
+    ) {
         return authService.handleGoogleCallback(code)
-                .map(response -> ApiResponseUtil.successFull("Google authentication successful", response));
+                .flatMap(authResponse -> redirectToFrontend(authResponse, httpRequest, response))
+                .onErrorResume(error -> redirectToLoginWithError(error, httpRequest, response));
     }
 
     @GetMapping("/oauth/github")
@@ -137,9 +148,53 @@ public class AuthController {
     }
 
     @GetMapping("/oauth/github/callback")
-    @Operation(summary = "GitHub OAuth callback", description = "Handles OAuth callback from GitHub and returns tokens")
-    public Mono<ApiResponse<AuthResponse>> handleGitHubCallback(@RequestParam String code) {
+    @Operation(summary = "GitHub OAuth callback", description = "Handles OAuth callback from GitHub and redirects to frontend")
+    public Mono<Void> handleGitHubCallback(
+            @RequestParam String code,
+            ServerHttpRequest httpRequest,
+            ServerHttpResponse response
+    ) {
         return authService.handleGitHubCallback(code)
-                .map(response -> ApiResponseUtil.successFull("GitHub authentication successful", response));
+                .flatMap(authResponse -> redirectToFrontend(authResponse, httpRequest, response))
+                .onErrorResume(error -> redirectToLoginWithError(error, httpRequest, response));
+    }
+
+    private Mono<Void> redirectToFrontend(
+            AuthResponse authResponse,
+            ServerHttpRequest httpRequest,
+            ServerHttpResponse response
+    ) {
+        String frontendUrl = frontendUrlResolver.getFrontendUrl(httpRequest);
+        String redirectUrl = String.format(
+                "%s/callback?accessToken=%s&refreshToken=%s&expiresIn=%d",
+                frontendUrl,
+                authResponse.accessToken(),
+                authResponse.refreshToken(),
+                authResponse.expiresIn()
+        );
+
+        log.debug("Redirecting to frontend callback with tokens");
+        response.setStatusCode(HttpStatus.FOUND);
+        response.getHeaders().setLocation(URI.create(redirectUrl));
+        return response.setComplete();
+    }
+
+    private Mono<Void> redirectToLoginWithError(
+            Throwable error,
+            ServerHttpRequest httpRequest,
+            ServerHttpResponse response
+    ) {
+        String frontendUrl = frontendUrlResolver.getFrontendUrl(httpRequest);
+        String errorMessage = error.getMessage() != null ? error.getMessage() : "Authentication failed";
+        String redirectUrl = String.format(
+                "%s/login?error=oauth_failed&message=%s",
+                frontendUrl,
+                URLEncoder.encode(errorMessage, StandardCharsets.UTF_8)
+        );
+
+        log.warn("OAuth authentication failed, redirecting to login: {}", errorMessage);
+        response.setStatusCode(HttpStatus.FOUND);
+        response.getHeaders().setLocation(URI.create(redirectUrl));
+        return response.setComplete();
     }
 }
