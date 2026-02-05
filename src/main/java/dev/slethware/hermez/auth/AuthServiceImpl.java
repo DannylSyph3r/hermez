@@ -165,18 +165,30 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public Mono<Void> verifyEmail(String token) {
         String tokenKey = VERIFICATION_TOKEN_PREFIX + token;
+        String tokenPreview = token.length() > 8 ? token.substring(0, 8) + "..." : token;
+
+        log.debug("Attempting to verify email with token: {}", tokenPreview);
 
         return redisTemplate.opsForValue().get(tokenKey)
-                .switchIfEmpty(Mono.error(new BadRequestException("Invalid or expired verification token")))
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("Email verification failed: Invalid or expired token: {}", tokenPreview);
+                    return Mono.error(new BadRequestException("Invalid or expired verification token"));
+                }))
                 .flatMap(userIdStr -> {
                     UUID userId = UUID.fromString(userIdStr);
                     String userKey = VERIFICATION_USER_PREFIX + userId;
+                    log.info("Verifying email for user: {}", userId);
 
                     return redisTemplate.delete(tokenKey)
+                            .doOnSuccess(deleted -> log.debug("Deleted verification token, count: {}", deleted))
+                            .doOnError(e -> log.error("Failed to delete verification token for user: {}", userId, e))
                             .then(redisTemplate.delete(userKey))
-                            .then(userRepository.verifyEmail(userId));
-                })
-                .doOnSuccess(v -> log.info("Email verified successfully"));
+                            .doOnSuccess(deleted -> log.debug("Deleted user verification key, count: {}", deleted))
+                            .doOnError(e -> log.error("Failed to delete user verification key for user: {}", userId, e))
+                            .then(userRepository.verifyEmail(userId))
+                            .doOnSuccess(v -> log.info("Email verified successfully for user: {}", userId))
+                            .doOnError(e -> log.error("Failed to update email_verified in database for user: {}", userId, e));
+                });
     }
 
     @Override
@@ -211,21 +223,31 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public Mono<Void> validateResetToken(String email, String token) {
         String normalizedEmail = email.toLowerCase().trim();
-        log.info("Validating reset token for email: {}", normalizedEmail);
-
         String tokenKey = RESET_TOKEN_PREFIX + token;
+        String tokenPreview = token.length() > 8 ? token.substring(0, 8) + "..." : token;
+
+        log.debug("Validating reset token: {} for email: {}", tokenPreview, normalizedEmail);
 
         return redisTemplate.opsForValue().get(tokenKey)
-                .switchIfEmpty(Mono.error(new BadRequestException("Invalid or expired reset token")))
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("Reset token validation failed: Invalid or expired token for email: {}", normalizedEmail);
+                    return Mono.error(new BadRequestException("Invalid or expired reset token"));
+                }))
                 .flatMap(userIdStr -> {
                     UUID userId = UUID.fromString(userIdStr);
+                    log.debug("Found user: {} for reset token", userId);
 
                     return userRepository.findById(userId)
-                            .switchIfEmpty(Mono.error(new BadRequestException("User not found")))
+                            .switchIfEmpty(Mono.defer(() -> {
+                                log.error("User not found for reset token, userId: {}", userId);
+                                return Mono.error(new BadRequestException("User not found"));
+                            }))
                             .flatMap(user -> {
                                 if (!user.getEmail().equals(normalizedEmail)) {
+                                    log.warn("Email mismatch for reset token. Expected: {}, Got: {}", user.getEmail(), normalizedEmail);
                                     return Mono.error(new BadRequestException("Invalid or expired reset token"));
                                 }
+                                log.info("Reset token validated successfully for email: {}", normalizedEmail);
                                 return Mono.empty();
                             });
                 });
@@ -234,30 +256,44 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public Mono<Void> resetPassword(ResetPasswordRequest request) {
         String normalizedEmail = request.email().toLowerCase().trim();
-        log.info("Resetting password for email: {}", normalizedEmail);
-
         String tokenKey = RESET_TOKEN_PREFIX + request.token();
+        String tokenPreview = request.token().length() > 8 ? request.token().substring(0, 8) + "..." : request.token();
+
+        log.info("Resetting password for email: {}", normalizedEmail);
+        log.debug("Using reset token: {}", tokenPreview);
 
         return redisTemplate.opsForValue().get(tokenKey)
-                .switchIfEmpty(Mono.error(new BadRequestException("Invalid or expired reset token")))
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("Password reset failed: Invalid or expired token for email: {}", normalizedEmail);
+                    return Mono.error(new BadRequestException("Invalid or expired reset token"));
+                }))
                 .flatMap(userIdStr -> {
                     UUID userId = UUID.fromString(userIdStr);
+                    log.debug("Found user: {} for password reset", userId);
 
                     return userRepository.findById(userId)
-                            .switchIfEmpty(Mono.error(new BadRequestException("User not found")))
+                            .switchIfEmpty(Mono.defer(() -> {
+                                log.error("User not found for password reset, userId: {}", userId);
+                                return Mono.error(new BadRequestException("User not found"));
+                            }))
                             .flatMap(user -> {
                                 if (!user.getEmail().equals(normalizedEmail)) {
+                                    log.warn("Email mismatch for password reset. Expected: {}, Got: {}", user.getEmail(), normalizedEmail);
                                     return Mono.error(new BadRequestException("Invalid or expired reset token"));
                                 }
 
                                 String newPasswordHash = passwordEncoder.encode(request.newPassword());
-
                                 String userKey = RESET_USER_PREFIX + userId;
 
                                 return redisTemplate.delete(tokenKey)
+                                        .doOnSuccess(deleted -> log.debug("Deleted reset token, count: {}", deleted))
+                                        .doOnError(e -> log.error("Failed to delete reset token for user: {}", userId, e))
                                         .then(redisTemplate.delete(userKey))
+                                        .doOnSuccess(deleted -> log.debug("Deleted user reset key, count: {}", deleted))
+                                        .doOnError(e -> log.error("Failed to delete user reset key for user: {}", userId, e))
                                         .then(userRepository.updatePassword(userId, newPasswordHash))
-                                        .doOnSuccess(v -> log.info("Password reset successfully for: {}", normalizedEmail));
+                                        .doOnSuccess(v -> log.info("Password reset successfully for: {}", normalizedEmail))
+                                        .doOnError(e -> log.error("Failed to update password in database for user: {}", userId, e));
                             });
                 });
     }
@@ -270,10 +306,46 @@ public class AuthServiceImpl implements AuthService {
         String verificationUrl = frontendUrlResolver.getFrontendUrl(httpRequest)
                 + "/verify-email?token=" + token;
 
-        return redisTemplate.opsForValue().set(tokenKey, user.getId().toString(), Duration.ofHours(24))
-                .then(redisTemplate.opsForValue().set(userKey, token, Duration.ofHours(24)))
-                .then(emailService.sendVerificationEmail(user.getEmail(), verificationUrl))
-                .doOnSuccess(v -> log.info("Verification email sent to: {}", user.getEmail()));
+        log.debug("Generating verification email for user: {}", user.getId());
+
+        // Get old token if exists and delete it
+        return redisTemplate.opsForValue().get(userKey)
+                .flatMap(oldToken -> {
+                    String oldTokenKey = VERIFICATION_TOKEN_PREFIX + oldToken;
+                    log.debug("Deleting old verification token for user: {}", user.getId());
+                    return redisTemplate.delete(oldTokenKey)
+                            .doOnSuccess(deleted -> log.debug("Deleted old verification token, count: {}", deleted))
+                            .doOnError(e -> log.error("Failed to delete old verification token for user: {}", user.getId(), e));
+                })
+                .switchIfEmpty(Mono.just(0L)) // No old token, continue.
+                // Delete old user key
+                .then(redisTemplate.delete(userKey))
+                .doOnSuccess(deleted -> {
+                    if (deleted > 0) {
+                        log.debug("Deleted old user verification key for user: {}", user.getId());
+                    }
+                })
+                .doOnError(e -> log.error("Failed to delete user verification key for user: {}", user.getId(), e))
+                // Store new token key
+                .then(redisTemplate.opsForValue().set(tokenKey, user.getId().toString(), Duration.ofHours(24)))
+                .flatMap(setResult -> {
+                    if (!Boolean.TRUE.equals(setResult)) {
+                        log.error("Failed to store verification token in Redis for user: {}", user.getId());
+                        return Mono.error(new RuntimeException("Failed to store verification token"));
+                    }
+                    log.debug("Stored verification token for user: {}", user.getId());
+                    return redisTemplate.opsForValue().set(userKey, token, Duration.ofHours(24));
+                })
+                .flatMap(setResult -> {
+                    if (!Boolean.TRUE.equals(setResult)) {
+                        log.error("Failed to store user verification key in Redis for user: {}", user.getId());
+                        return Mono.error(new RuntimeException("Failed to store user verification key"));
+                    }
+                    log.debug("Stored user verification key for user: {}", user.getId());
+                    return emailService.sendVerificationEmail(user.getEmail(), verificationUrl);
+                })
+                .doOnSuccess(v -> log.info("Verification email sent to: {}", user.getEmail()))
+                .doOnError(e -> log.error("Error in verification email flow for user: {}", user.getId(), e));
     }
 
     private Mono<Void> sendPasswordResetEmail(User user, ServerHttpRequest httpRequest) {
@@ -281,13 +353,48 @@ public class AuthServiceImpl implements AuthService {
         String tokenKey = RESET_TOKEN_PREFIX + token;
         String userKey = RESET_USER_PREFIX + user.getId();
 
-        String resetUrl = frontendUrlResolver.getFrontendUrl(httpRequest)
-                + "/reset-password?token=" + token + "&email=" + user.getEmail();
+        String resetUrl = frontendUrlResolver.getFrontendUrl(httpRequest) + "/reset-password?token=" + token + "&email=" + user.getEmail();
 
-        return redisTemplate.opsForValue().set(tokenKey, user.getId().toString(), Duration.ofMinutes(5))
-                .then(redisTemplate.opsForValue().set(userKey, token, Duration.ofMinutes(5)))
-                .then(emailService.sendPasswordResetEmail(user.getEmail(), resetUrl))
-                .doOnSuccess(v -> log.info("Password reset email sent to: {}", user.getEmail()));
+        log.debug("Generating password reset email for user: {}", user.getId());
+
+        // Get old token if exists and delete it
+        return redisTemplate.opsForValue().get(userKey)
+                .flatMap(oldToken -> {
+                    String oldTokenKey = RESET_TOKEN_PREFIX + oldToken;
+                    log.debug("Deleting old password reset token for user: {}", user.getId());
+                    return redisTemplate.delete(oldTokenKey)
+                            .doOnSuccess(deleted -> log.debug("Deleted old reset token, count: {}", deleted))
+                            .doOnError(e -> log.error("Failed to delete old reset token for user: {}", user.getId(), e));
+                })
+                .switchIfEmpty(Mono.just(0L)) // No old token, continue.
+                // Delete old user key
+                .then(redisTemplate.delete(userKey))
+                .doOnSuccess(deleted -> {
+                    if (deleted > 0) {
+                        log.debug("Deleted old user reset key for user: {}", user.getId());
+                    }
+                })
+                .doOnError(e -> log.error("Failed to delete user reset key for user: {}", user.getId(), e))
+                // Store new token key
+                .then(redisTemplate.opsForValue().set(tokenKey, user.getId().toString(), Duration.ofMinutes(5)))
+                .flatMap(setResult -> {
+                    if (!Boolean.TRUE.equals(setResult)) {
+                        log.error("Failed to store password reset token in Redis for user: {}", user.getId());
+                        return Mono.error(new RuntimeException("Failed to store password reset token"));
+                    }
+                    log.debug("Stored password reset token for user: {}", user.getId());
+                    return redisTemplate.opsForValue().set(userKey, token, Duration.ofMinutes(5));
+                })
+                .flatMap(setResult -> {
+                    if (!Boolean.TRUE.equals(setResult)) {
+                        log.error("Failed to store user reset key in Redis for user: {}", user.getId());
+                        return Mono.error(new RuntimeException("Failed to store user reset key"));
+                    }
+                    log.debug("Stored user reset key for user: {}", user.getId());
+                    return emailService.sendPasswordResetEmail(user.getEmail(), resetUrl);
+                })
+                .doOnSuccess(v -> log.info("Password reset email sent to: {}", user.getEmail()))
+                .doOnError(e -> log.error("Error in password reset flow for user: {}", user.getId(), e));
     }
 
     private Mono<AuthResponse> generateAuthResponse(User user) {
@@ -305,7 +412,14 @@ public class AuthServiceImpl implements AuthService {
     private Mono<Void> checkRateLimit(String email) {
         String lockoutKey = LOCKOUT_PREFIX + email;
 
+        log.debug("Checking rate limit for: {}", email);
+
         return redisTemplate.hasKey(lockoutKey)
+                .doOnNext(locked -> {
+                    if (locked) {
+                        log.warn("Login attempt blocked for locked out user: {}", email);
+                    }
+                })
                 .flatMap(locked -> {
                     if (locked) {
                         return Mono.error(new TooManyRequestsException(
@@ -313,7 +427,20 @@ public class AuthServiceImpl implements AuthService {
                                         authProperties.getRateLimit().getLockoutSeconds() + " seconds."));
                     }
                     return Mono.empty();
-                });
+                })
+                .doOnError(e -> {
+                    if (!(e instanceof TooManyRequestsException)) {
+                        log.error("Redis error during rate limit check for: {}. Allowing login (fail-open)", email, e);
+                    }
+                })
+                .onErrorResume(e -> {
+                    if (e instanceof TooManyRequestsException) {
+                        return Mono.error(e);
+                    }
+                    // Fail-open: allow login if Redis is down
+                    return Mono.empty();
+                })
+                .then();
     }
 
     private Mono<Void> incrementFailedAttempts(String email) {
@@ -322,25 +449,52 @@ public class AuthServiceImpl implements AuthService {
 
         return redisTemplate.opsForValue().increment(rateLimitKey)
                 .flatMap(count -> {
+                    log.debug("Failed login attempt #{} for: {}", count, email);
                     if (count == 1) {
-                        return redisTemplate.expire(rateLimitKey, window).thenReturn(count);
+                        return redisTemplate.expire(rateLimitKey, window)
+                                .doOnSuccess(v -> log.debug("Set rate limit window expiry for: {}", email))
+                                .doOnError(e -> log.error("Failed to set expiry for rate limit key: {}", email, e))
+                                .thenReturn(count);
                     }
                     return Mono.just(count);
                 })
                 .flatMap(count -> {
                     if (count >= authProperties.getRateLimit().getMaxAttempts()) {
+                        log.warn("Locking out user after {} failed attempts: {}", count, email);
                         String lockoutKey = LOCKOUT_PREFIX + email;
                         Duration lockout = Duration.ofSeconds(authProperties.getRateLimit().getLockoutSeconds());
                         return redisTemplate.opsForValue().set(lockoutKey, "1", lockout)
+                                .doOnSuccess(v -> log.info("User locked out for {} seconds: {}", lockout.getSeconds(), email))
+                                .doOnError(e -> log.error("Failed to set lockout for: {}", email, e))
                                 .then(redisTemplate.delete(rateLimitKey))
+                                .doOnError(e -> log.error("Failed to delete rate limit key for: {}", email, e))
                                 .then();
                     }
+                    return Mono.empty();
+                })
+                .doOnError(e -> log.error("Error incrementing failed attempts for: {}", email, e))
+                .onErrorResume(e -> {
+                    // Fail-open: continue even if Redis fails
+                    log.error("Redis error during failed attempt increment. Rate limiting disabled for: {}", email);
                     return Mono.empty();
                 });
     }
 
     private Mono<Void> clearRateLimit(String email) {
         String rateLimitKey = RATE_LIMIT_PREFIX + email;
-        return redisTemplate.delete(rateLimitKey).then();
+
+        return redisTemplate.delete(rateLimitKey)
+                .doOnSuccess(deleted -> {
+                    if (deleted > 0) {
+                        log.debug("Cleared rate limit for successful login: {}", email);
+                    }
+                })
+                .doOnError(e -> log.error("Failed to clear rate limit for: {}", email, e))
+                .onErrorResume(e -> {
+                    // Fail-open: continue login even if Redis fails
+                    log.error("Redis error clearing rate limit. Continuing login for: {}", email);
+                    return Mono.empty();
+                })
+                .then();
     }
 }
