@@ -282,7 +282,7 @@ public class AuthServiceImpl implements AuthService {
         String userKey = RESET_USER_PREFIX + user.getId();
 
         String resetUrl = frontendUrlResolver.getFrontendUrl(httpRequest)
-                + "/reset-password?token=" + token;
+                + "/reset-password?token=" + token + "&email=" + user.getEmail();
 
         return redisTemplate.opsForValue().set(tokenKey, user.getId().toString(), Duration.ofMinutes(5))
                 .then(redisTemplate.opsForValue().set(userKey, token, Duration.ofMinutes(5)))
