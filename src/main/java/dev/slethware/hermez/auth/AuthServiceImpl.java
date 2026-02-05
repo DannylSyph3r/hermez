@@ -20,6 +20,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -303,8 +305,8 @@ public class AuthServiceImpl implements AuthService {
         String tokenKey = VERIFICATION_TOKEN_PREFIX + token;
         String userKey = VERIFICATION_USER_PREFIX + user.getId();
 
-        String verificationUrl = frontendUrlResolver.getFrontendUrl(httpRequest)
-                + "/verify-email?token=" + token;
+        String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
+        String verificationUrl = frontendUrlResolver.getFrontendUrl(httpRequest) + "/verify-email?token=" + encodedToken;
 
         log.debug("Generating verification email for user: {}", user.getId());
 
@@ -353,7 +355,10 @@ public class AuthServiceImpl implements AuthService {
         String tokenKey = RESET_TOKEN_PREFIX + token;
         String userKey = RESET_USER_PREFIX + user.getId();
 
-        String resetUrl = frontendUrlResolver.getFrontendUrl(httpRequest) + "/reset-password?token=" + token + "&email=" + user.getEmail();
+        String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
+        String encodedEmail = URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8);
+
+        String resetUrl = frontendUrlResolver.getFrontendUrl(httpRequest) + "/reset-password?token=" + encodedToken + "&email=" + encodedEmail;
 
         log.debug("Generating password reset email for user: {}", user.getId());
 
