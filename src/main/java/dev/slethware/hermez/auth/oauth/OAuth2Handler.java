@@ -141,6 +141,7 @@ public class OAuth2Handler {
                                     // User exists with this email, link OAuth account
                                     log.info("Linking OAuth account to existing user: {}", email);
                                     return createOAuthConnection(existingUser.getId(), provider, providerId)
+                                            .then(userRepository.verifyEmail(existingUser.getId()))
                                             .then(updateLastLogin(existingUser))
                                             .thenReturn(existingUser);
                                 })
