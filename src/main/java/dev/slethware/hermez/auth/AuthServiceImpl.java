@@ -88,6 +88,12 @@ public class AuthServiceImpl implements AuthService {
                                 .then(Mono.error(new UnauthorizedException("Invalid email or password")))
                 ))
                 .flatMap(user -> {
+                    // Check if user is soft deleted
+                    if (user.getDeletedAt() != null) {
+                        return incrementFailedAttempts(normalizedEmail)
+                                .then(Mono.error(new UnauthorizedException("Invalid email or password")));
+                    }
+
                     if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
                         return incrementFailedAttempts(normalizedEmail)
                                 .then(Mono.error(new UnauthorizedException("Invalid email or password")));
@@ -410,7 +416,7 @@ public class AuthServiceImpl implements AuthService {
                         accessToken,
                         refreshToken,
                         authProperties.getJwt().getAccessTokenExpiration() / 1000,
-                        UserResponse.from(user)
+                        UserResponse.from(user, 0)
                 ));
     }
 
