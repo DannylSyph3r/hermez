@@ -416,7 +416,7 @@ public class AuthServiceImpl implements AuthService {
                         accessToken,
                         refreshToken,
                         authProperties.getJwt().getAccessTokenExpiration() / 1000,
-                        UserResponse.from(user, 0)
+                        UserResponse.from(user)
                 ));
     }
 

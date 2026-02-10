@@ -1,6 +1,5 @@
 package dev.slethware.hermez.user.api;
 
-import dev.slethware.hermez.auth.api.UserResponse;
 import dev.slethware.hermez.common.models.response.ApiResponse;
 import dev.slethware.hermez.common.util.ApiResponseUtil;
 import dev.slethware.hermez.user.UserService;
@@ -21,10 +20,10 @@ public class UserController {
 
     @GetMapping("/me")
     @Operation(
-            summary = "Get current user",
-            description = "Retrieves the authenticated user's profile information including stats"
+            summary = "Get current user profile",
+            description = "Retrieves the authenticated user's complete profile"
     )
-    public Mono<ApiResponse<UserResponse>> getCurrentUser() {
+    public Mono<ApiResponse<UserProfileResponse>> getCurrentUser() {
         return userService.getCurrentUser()
                 .map(user -> ApiResponseUtil.successFull("User retrieved successfully", user));
     }
@@ -34,7 +33,7 @@ public class UserController {
             summary = "Update user name",
             description = "Updates the authenticated user's name"
     )
-    public Mono<ApiResponse<UserResponse>> updateName(@Valid @RequestBody UpdateNameRequest request) {
+    public Mono<ApiResponse<UserProfileResponse>> updateName(@Valid @RequestBody UpdateNameRequest request) {
         return userService.updateName(request)
                 .map(user -> ApiResponseUtil.successFull("Name updated successfully", user));
     }
@@ -44,7 +43,7 @@ public class UserController {
             summary = "Update user avatar",
             description = "Updates the authenticated user's avatar URL"
     )
-    public Mono<ApiResponse<UserResponse>> updateAvatar(@Valid @RequestBody UpdateAvatarRequest request) {
+    public Mono<ApiResponse<UserProfileResponse>> updateAvatar(@Valid @RequestBody UpdateAvatarRequest request) {
         return userService.updateAvatar(request)
                 .map(user -> ApiResponseUtil.successFull("Avatar updated successfully", user));
     }
