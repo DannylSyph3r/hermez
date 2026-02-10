@@ -7,6 +7,7 @@ import dev.slethware.hermez.subdomain.SubdomainReservationRepository;
 import dev.slethware.hermez.user.api.ChangePasswordRequest;
 import dev.slethware.hermez.user.api.UpdateAvatarRequest;
 import dev.slethware.hermez.user.api.UpdateNameRequest;
+import dev.slethware.hermez.user.api.UserProfileResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
@@ -23,23 +24,24 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final OAuthConnectionRepository oauthConnectionRepository;
     private final SubdomainReservationRepository subdomainReservationRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public Mono<UserResponse> getCurrentUser() {
+    public Mono<UserProfileResponse> getCurrentUser() {
         return getCurrentUserId()
                 .flatMap(userId -> userRepository.findById(userId)
                         .switchIfEmpty(Mono.error(new UnauthorizedException("User not found")))
                 )
-                .flatMap(user -> subdomainReservationRepository.findByUserId(user.getId())
-                        .count()
-                        .map(count -> UserResponse.from(user, count.intValue()))
-                );
+                .flatMap(user -> Mono.zip(
+                        subdomainReservationRepository.findByUserId(user.getId()).count(),
+                        oauthConnectionRepository.findByUserId(user.getId()).collectList()
+                ).map(tuple -> UserProfileResponse.from(user, tuple.getT1().intValue(), tuple.getT2())));
     }
 
     @Override
-    public Mono<UserResponse> updateName(UpdateNameRequest request) {
+    public Mono<UserProfileResponse> updateName(UpdateNameRequest request) {
         return getCurrentUserId()
                 .flatMap(userId -> userRepository.findById(userId)
                         .switchIfEmpty(Mono.error(new UnauthorizedException("User not found")))
@@ -48,15 +50,15 @@ public class UserServiceImpl implements UserService {
                     user.setName(request.name().trim());
                     return userRepository.save(user);
                 })
-                .flatMap(savedUser -> subdomainReservationRepository.findByUserId(savedUser.getId())
-                        .count()
-                        .map(count -> UserResponse.from(savedUser, count.intValue()))
-                )
+                .flatMap(savedUser -> Mono.zip(
+                        subdomainReservationRepository.findByUserId(savedUser.getId()).count(),
+                        oauthConnectionRepository.findByUserId(savedUser.getId()).collectList()
+                ).map(tuple -> UserProfileResponse.from(savedUser, tuple.getT1().intValue(), tuple.getT2())))
                 .doOnSuccess(user -> log.info("User name updated: {}", user.email()));
     }
 
     @Override
-    public Mono<UserResponse> updateAvatar(UpdateAvatarRequest request) {
+    public Mono<UserProfileResponse> updateAvatar(UpdateAvatarRequest request) {
         return getCurrentUserId()
                 .flatMap(userId -> userRepository.findById(userId)
                         .switchIfEmpty(Mono.error(new UnauthorizedException("User not found")))
@@ -65,10 +67,10 @@ public class UserServiceImpl implements UserService {
                     user.setAvatarUrl(request.avatarUrl().trim());
                     return userRepository.save(user);
                 })
-                .flatMap(savedUser -> subdomainReservationRepository.findByUserId(savedUser.getId())
-                        .count()
-                        .map(count -> UserResponse.from(savedUser, count.intValue()))
-                )
+                .flatMap(savedUser -> Mono.zip(
+                        subdomainReservationRepository.findByUserId(savedUser.getId()).count(),
+                        oauthConnectionRepository.findByUserId(savedUser.getId()).collectList()
+                ).map(tuple -> UserProfileResponse.from(savedUser, tuple.getT1().intValue(), tuple.getT2())))
                 .doOnSuccess(user -> log.info("User avatar updated: {}", user.email()));
     }
 
