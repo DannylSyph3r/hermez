@@ -10,20 +10,16 @@ public record UserResponse(
         String name,
         String avatarUrl,
         String tier,
-        boolean hasPassword,
-        Integer activeTunnels,
-        Integer reservedSubdomains
+        boolean hasPassword
 ) {
-    public static UserResponse from(User user, Integer reservedSubdomains) {
+    public static UserResponse from(User user) {
         return new UserResponse(
                 user.getId(),
                 user.getEmail(),
                 user.getName(),
                 user.getAvatarUrl(),
                 user.getTier(),
-                user.getPasswordHash() != null,
-                0, // Scaffold
-                reservedSubdomains
+                user.getPasswordHash() != null
         );
     }
 }
