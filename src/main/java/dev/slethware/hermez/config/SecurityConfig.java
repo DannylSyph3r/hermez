@@ -34,7 +34,10 @@ public class SecurityConfig {
                         .pathMatchers("/api/v1/auth/forgot-password").permitAll()
                         .pathMatchers("/api/v1/auth/validate-reset-token").permitAll()
                         .pathMatchers("/api/v1/auth/reset-password").permitAll()
-                        .pathMatchers("/api/v1/auth/oauth/**").permitAll()
+                        .pathMatchers("/api/v1/auth/oauth/google").permitAll()
+                        .pathMatchers("/api/v1/auth/oauth/google/callback").permitAll()
+                        .pathMatchers("/api/v1/auth/oauth/github").permitAll()
+                        .pathMatchers("/api/v1/auth/oauth/github/callback").permitAll()
                         .pathMatchers("/api/v1/waitlist/**").permitAll()
 
                         // Documentation
