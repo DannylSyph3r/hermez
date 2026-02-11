@@ -159,9 +159,9 @@ public class OAuth2Handler {
         User user = User.builder()
                 .email(email)
                 .name(name)
-                .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString())) // Random password for OAuth-only users
+                .passwordHash(null)
                 .tier("free")
-                .emailVerified(true) // OAuth emails are pre-verified by the provider
+                .emailVerified(true)
                 .createdAt(LocalDateTime.now())
                 .lastLoginAt(LocalDateTime.now())
                 .build();
