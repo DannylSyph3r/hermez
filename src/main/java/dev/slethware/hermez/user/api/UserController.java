@@ -58,6 +58,19 @@ public class UserController {
                 .then(Mono.fromCallable(() -> ApiResponseUtil.successFullVoid("Password changed successfully")));
     }
 
+    @DeleteMapping("/me/oauth/{provider}")
+    @Operation(
+            summary = "Disconnect OAuth provider",
+            description = "Disconnects the specified OAuth provider (google or github) from the user's account. " +
+                    "User must have at least one other authentication method (password or another OAuth connection)."
+    )
+    public Mono<ApiResponse<Void>> disconnectOAuth(@PathVariable String provider) {
+        return userService.disconnectOAuth(provider)
+                .then(Mono.fromCallable(() -> ApiResponseUtil.successFullVoid(
+                        "OAuth provider disconnected successfully"
+                )));
+    }
+
     @DeleteMapping("/me")
     @Operation(
             summary = "Delete account",

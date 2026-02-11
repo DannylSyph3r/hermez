@@ -10,7 +10,6 @@ import dev.slethware.hermez.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -27,7 +26,6 @@ public class OAuth2Handler {
     private final WebClient webClient;
     private final UserRepository userRepository;
     private final OAuthConnectionRepository oauthConnectionRepository;
-    private final PasswordEncoder passwordEncoder;
     private final OAuthProperties oauthProperties;
 
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE_REFERENCE =
@@ -197,5 +195,79 @@ public class OAuth2Handler {
             }
             default -> "User";
         };
+    }
+
+    public Mono<Void> handleGoogleLinkCallback(String code, UUID userId) {
+        log.info("Processing Google OAuth link callback for user: {}", userId);
+
+        return exchangeCodeForToken(
+                code,
+                oauthProperties.getGoogle().getTokenUri(),
+                oauthProperties.getGoogle().getClientId(),
+                oauthProperties.getGoogle().getClientSecret(),
+                oauthProperties.getGoogle().getRedirectUri()
+        )
+                .flatMap(tokenResponse -> fetchGoogleUserInfo(tokenResponse.get("access_token").toString()))
+                .flatMap(userInfo -> linkOAuthToUser(userId, "google", userInfo));
+    }
+
+    public Mono<Void> handleGitHubLinkCallback(String code, UUID userId) {
+        log.info("Processing GitHub OAuth link callback for user: {}", userId);
+
+        return exchangeCodeForToken(
+                code,
+                oauthProperties.getGithub().getTokenUri(),
+                oauthProperties.getGithub().getClientId(),
+                oauthProperties.getGithub().getClientSecret(),
+                oauthProperties.getGithub().getRedirectUri()
+        )
+                .flatMap(tokenResponse -> fetchGitHubUserInfo(tokenResponse.get("access_token").toString()))
+                .flatMap(userInfo -> linkOAuthToUser(userId, "github", userInfo));
+    }
+
+    private Mono<Void> linkOAuthToUser(UUID userId, String provider, Map<String, Object> userInfo) {
+        String providerId = userInfo.get("id").toString();
+        String oauthEmail = normalizeEmail(userInfo.get("email").toString());
+
+        log.info("Linking {} to user: {}, OAuth email: {}", provider, userId, oauthEmail);
+
+        // Check if OAuth connection already exists
+        return oauthConnectionRepository.findByProviderAndProviderId(provider, providerId)
+                .flatMap(existingConnection -> {
+                    if (existingConnection.getUserId().equals(userId)) {
+                        // Already linked to this user - idempotent success
+                        log.debug("User {} already has {} connected, treating as success", userId, provider);
+                        return Mono.empty();
+                    } else {
+                        // Already linked to different user - error
+                        log.warn("OAuth {} account {} already linked to different user", provider, providerId);
+                        return Mono.error(new BadRequestException(
+                                "This " + provider + " account is already connected to another user."
+                        ));
+                    }
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    // Not linked yet, validate and create connection
+                    return userRepository.findById(userId)
+                            .switchIfEmpty(Mono.error(new UnauthorizedException("User not found")))
+                            .flatMap(user -> {
+                                // Validate email match
+                                if (!oauthEmail.equalsIgnoreCase(user.getEmail())) {
+                                    log.warn("OAuth email mismatch for user {}: user={}, oauth={}",
+                                            userId, user.getEmail(), oauthEmail);
+                                    return Mono.error(new BadRequestException(
+                                            "The email associated with this " + provider + " account (" + oauthEmail + ") " +
+                                                    "does not match your Hermez account email (" + user.getEmail() + "). " +
+                                                    "Please use a " + provider + " account with a matching email address."
+                                    ));
+                                }
+
+                                // Create OAuth connection
+                                return createOAuthConnection(userId, provider, providerId)
+                                        .doOnSuccess(conn -> log.info("Successfully linked {} to user: {}", provider, userId))
+                                        .then();
+                            });
+                }))
+                .then();
     }
 }

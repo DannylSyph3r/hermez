@@ -15,11 +15,15 @@ import dev.slethware.hermez.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -47,6 +51,7 @@ public class AuthServiceImpl implements AuthService {
     private static final String RESET_USER_PREFIX = "password_reset:user:";
     private static final String RATE_LIMIT_PREFIX = "ratelimit:login:";
     private static final String LOCKOUT_PREFIX = "lockout:login:";
+    private static final String OAUTH_LINK_TOKEN_PREFIX = "oauth_link:";
 
     @Override
     public Mono<Void> register(SignupRequest request, ServerHttpRequest httpRequest) {
@@ -507,5 +512,156 @@ public class AuthServiceImpl implements AuthService {
                     return Mono.empty();
                 })
                 .then();
+    }
+
+    @Override
+    public Mono<String> initiateGoogleOAuthLink() {
+        return ReactiveSecurityContextHolder.getContext()
+                .map(securityContext -> securityContext.getAuthentication().getName())
+                .map(UUID::fromString)
+                .flatMap(userId -> {
+                    // Generate link token and store in Redis (5 min TTL)
+                    String linkToken = UUID.randomUUID().toString();
+                    String redisKey = OAUTH_LINK_TOKEN_PREFIX + linkToken;
+
+                    return redisTemplate.opsForValue()
+                            .set(redisKey, userId.toString(), Duration.ofMinutes(5))
+                            .then(Mono.defer(() -> {
+                                String state = "action:link,token:" + linkToken + ",redirect:/settings";
+                                String authorizationUrl = oauthProperties.getGoogle().getAuthorizationUri() +
+                                        "?client_id=" + oauthProperties.getGoogle().getClientId() +
+                                        "&redirect_uri=" + oauthProperties.getGoogle().getRedirectUri() +
+                                        "&response_type=code" +
+                                        "&scope=email profile" +
+                                        "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8);
+
+                                log.info("Initiating Google OAuth link for user: {}", userId);
+                                return Mono.just(authorizationUrl);
+                            }));
+                });
+    }
+
+    @Override
+    public Mono<Void> handleGoogleLinkCallback(String code, String state, ServerHttpRequest httpRequest, ServerHttpResponse response) {
+        if (code == null || code.isBlank()) {
+            return redirectToSettingsWithError("OAuth code is missing", httpRequest, response);
+        }
+
+        // Parse state to extract link token
+        String linkToken = extractStateParam(state, "token");
+        if (linkToken == null) {
+            return redirectToSettingsWithError("Invalid OAuth state", httpRequest, response);
+        }
+
+        // Get userId from Redis
+        String redisKey = OAUTH_LINK_TOKEN_PREFIX + linkToken;
+        return redisTemplate.opsForValue().get(redisKey)
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("OAuth link token expired or invalid: {}", linkToken);
+                    return Mono.error(new UnauthorizedException("OAuth link session expired. Please try again."));
+                }))
+                .flatMap(userIdStr -> {
+                    UUID userId = UUID.fromString(userIdStr);
+
+                    // Delete token (one-time use)
+                    return redisTemplate.delete(redisKey)
+                            .then(oauth2Handler.handleGoogleLinkCallback(code, userId))
+                            .then(redirectToSettingsWithSuccess("google", httpRequest, response));
+                })
+                .onErrorResume(error -> redirectToSettingsWithError(error.getMessage(), httpRequest, response));
+    }
+
+    @Override
+    public Mono<String> initiateGitHubOAuthLink() {
+        return ReactiveSecurityContextHolder.getContext()
+                .map(securityContext -> securityContext.getAuthentication().getName())
+                .map(UUID::fromString)
+                .flatMap(userId -> {
+                    // Generate link token and store in Redis (5 min TTL)
+                    String linkToken = UUID.randomUUID().toString();
+                    String redisKey = OAUTH_LINK_TOKEN_PREFIX + linkToken;
+
+                    return redisTemplate.opsForValue()
+                            .set(redisKey, userId.toString(), Duration.ofMinutes(5))
+                            .then(Mono.defer(() -> {
+                                String state = "action:link,token:" + linkToken + ",redirect:/settings";
+                                String authorizationUrl = oauthProperties.getGithub().getAuthorizationUri() +
+                                        "?client_id=" + oauthProperties.getGithub().getClientId() +
+                                        "&redirect_uri=" + oauthProperties.getGithub().getRedirectUri() +
+                                        "&scope=user:email" +
+                                        "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8);
+
+                                log.info("Initiating GitHub OAuth link for user: {}", userId);
+                                return Mono.just(authorizationUrl);
+                            }));
+                });
+    }
+
+    @Override
+    public Mono<Void> handleGitHubLinkCallback(String code, String state, ServerHttpRequest httpRequest, ServerHttpResponse response) {
+        if (code == null || code.isBlank()) {
+            return redirectToSettingsWithError("OAuth code is missing", httpRequest, response);
+        }
+
+        // Parse state to extract link token
+        String linkToken = extractStateParam(state, "token");
+        if (linkToken == null) {
+            return redirectToSettingsWithError("Invalid OAuth state", httpRequest, response);
+        }
+
+        // Get userId from Redis
+        String redisKey = OAUTH_LINK_TOKEN_PREFIX + linkToken;
+        return redisTemplate.opsForValue().get(redisKey)
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("OAuth link token expired or invalid: {}", linkToken);
+                    return Mono.error(new UnauthorizedException("OAuth link session expired. Please try again."));
+                }))
+                .flatMap(userIdStr -> {
+                    UUID userId = UUID.fromString(userIdStr);
+
+                    // Delete token (one-time use)
+                    return redisTemplate.delete(redisKey)
+                            .then(oauth2Handler.handleGitHubLinkCallback(code, userId))
+                            .then(redirectToSettingsWithSuccess("github", httpRequest, response));
+                })
+                .onErrorResume(error -> redirectToSettingsWithError(error.getMessage(), httpRequest, response));
+    }
+
+    private String extractStateParam(String state, String param) {
+        if (state == null || !state.contains(param + ":")) {
+            return null;
+        }
+
+        String[] parts = state.split(",");
+        for (String part : parts) {
+            if (part.startsWith(param + ":")) {
+                return part.substring((param + ":").length());
+            }
+        }
+        return null;
+    }
+
+    private Mono<Void> redirectToSettingsWithSuccess(String provider, ServerHttpRequest httpRequest, ServerHttpResponse response) {
+        String frontendUrl = frontendUrlResolver.getFrontendUrl(httpRequest);
+        String redirectUrl = String.format("%s/settings?connected=%s", frontendUrl, provider);
+
+        log.debug("Redirecting to settings after successful OAuth link: {}", provider);
+        response.setStatusCode(HttpStatus.FOUND);
+        response.getHeaders().setLocation(URI.create(redirectUrl));
+        return response.setComplete();
+    }
+
+    private Mono<Void> redirectToSettingsWithError(String errorMessage, ServerHttpRequest httpRequest, ServerHttpResponse response) {
+        String frontendUrl = frontendUrlResolver.getFrontendUrl(httpRequest);
+        String redirectUrl = String.format(
+                "%s/settings?error=oauth_link_failed&message=%s",
+                frontendUrl,
+                URLEncoder.encode(errorMessage, StandardCharsets.UTF_8)
+        );
+
+        log.warn("OAuth link failed, redirecting to settings: {}", errorMessage);
+        response.setStatusCode(HttpStatus.FOUND);
+        response.getHeaders().setLocation(URI.create(redirectUrl));
+        return response.setComplete();
     }
 }

@@ -12,5 +12,6 @@ public interface UserService {
     Mono<UserProfileResponse> updateName(UpdateNameRequest request);
     Mono<UserProfileResponse> updateAvatar(UpdateAvatarRequest request);
     Mono<Void> changePassword(ChangePasswordRequest request);
+    Mono<Void> disconnectOAuth(String provider);
     Mono<Void> deleteAccount();
 }

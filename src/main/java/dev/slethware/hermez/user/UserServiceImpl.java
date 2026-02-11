@@ -1,6 +1,5 @@
 package dev.slethware.hermez.user;
 
-import dev.slethware.hermez.auth.api.UserResponse;
 import dev.slethware.hermez.exception.BadRequestException;
 import dev.slethware.hermez.exception.UnauthorizedException;
 import dev.slethware.hermez.subdomain.SubdomainReservationRepository;
@@ -16,6 +15,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -113,6 +113,57 @@ public class UserServiceImpl implements UserService {
                 })
                 .doOnSuccess(v -> log.info("Password changed successfully"))
                 .then();
+    }
+
+    @Override
+    public Mono<Void> disconnectOAuth(String provider) {
+        // Validate provider
+        if (!provider.equals("google") && !provider.equals("github")) {
+            return Mono.error(new BadRequestException("Invalid provider. Must be 'google' or 'github'."));
+        }
+
+        return getCurrentUserId()
+                .flatMap(userId -> {
+                    log.info("Attempting to disconnect {} OAuth for user: {}", provider, userId);
+
+                    // Get user and their OAuth connections
+                    return Mono.zip(
+                            userRepository.findById(userId),
+                            oauthConnectionRepository.findByUserId(userId).collectList()
+                    ).flatMap(tuple -> {
+                        User user = tuple.getT1();
+                        List<OAuthConnection> connections = tuple.getT2();
+
+                        // Check if user has at least one other auth method
+                        boolean hasPassword = user.getPasswordHash() != null && !user.getPasswordHash().isEmpty();
+                        long connectionCount = connections.size();
+
+                        // User must have password OR another OAuth connection
+                        if (!hasPassword && connectionCount <= 1) {
+                            log.warn("User {} attempted to disconnect only auth method: {}", userId, provider);
+                            return Mono.error(new BadRequestException(
+                                    "Cannot disconnect your only authentication method. " +
+                                            "Please add a password or connect another account first."
+                            ));
+                        }
+
+                        // Find and delete the specific connection (idempotent)
+                        Mono<OAuthConnection> connectionMono = oauthConnectionRepository
+                                .findByUserIdAndProvider(userId, provider)
+                                .cache();
+
+                        return connectionMono.hasElement()
+                                .flatMap(exists -> {
+                                    if (exists) {
+                                        log.info("Disconnecting {} OAuth for user: {}", provider, userId);
+                                        return connectionMono.flatMap(oauthConnectionRepository::delete);
+                                    } else {
+                                        log.debug("No {} connection found for user {}, treating as success (idempotent)", provider, userId);
+                                        return Mono.empty();
+                                    }
+                                });
+                    });
+                });
     }
 
     @Override
