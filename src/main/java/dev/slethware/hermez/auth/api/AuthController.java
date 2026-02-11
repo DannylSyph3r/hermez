@@ -18,6 +18,7 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
+import java.util.Map;
 import java.util.UUID;
 
 import static reactor.netty.http.HttpConnectionLiveness.log;
@@ -195,6 +196,26 @@ public class AuthController {
         return authService.handleGitHubCallback(code)
                 .flatMap(authResponse -> redirectToFrontend(authResponse, httpRequest, response))
                 .onErrorResume(error -> redirectToLoginWithError(error, httpRequest, response));
+    }
+
+    @GetMapping("/oauth/google/link")
+    @Operation(summary = "Get Google OAuth link URL", description = "Returns authorization URL for linking Google account. Requires authentication.")
+    public Mono<ApiResponse<Map<String, String>>> getGoogleOAuthLinkUrl() {
+        return authService.initiateGoogleOAuthLink()
+                .map(authorizationUrl -> ApiResponseUtil.successFull(
+                        "Google OAuth URL generated",
+                        Map.of("authorizationUrl", authorizationUrl)
+                ));
+    }
+
+    @GetMapping("/oauth/github/link")
+    @Operation(summary = "Get GitHub OAuth link URL", description = "Returns authorization URL for linking GitHub account. Requires authentication.")
+    public Mono<ApiResponse<Map<String, String>>> getGitHubOAuthLinkUrl() {
+        return authService.initiateGitHubOAuthLink()
+                .map(authorizationUrl -> ApiResponseUtil.successFull(
+                        "GitHub OAuth URL generated",
+                        Map.of("authorizationUrl", authorizationUrl)
+                ));
     }
 
     private Mono<Void> redirectToFrontend(
