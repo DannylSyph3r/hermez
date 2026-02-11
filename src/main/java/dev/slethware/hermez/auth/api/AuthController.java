@@ -114,8 +114,20 @@ public class AuthController {
     }
 
     @GetMapping("/oauth/google")
-    @Operation(summary = "Initiate Google OAuth", description = "Redirects to Google OAuth consent screen")
-    public Mono<Void> initiateGoogleOAuth(ServerHttpResponse response) {
+    @Operation(summary = "Initiate Google OAuth", description = "Redirects to Google OAuth consent screen. Use ?mode=link for linking to existing account.")
+    public Mono<Void> initiateGoogleOAuth(
+            @RequestParam(required = false) String mode,
+            ServerHttpResponse response
+    ) {
+        if ("link".equals(mode)) {
+            return authService.initiateGoogleOAuthLink()
+                    .flatMap(authorizationUrl -> {
+                        response.setStatusCode(HttpStatus.FOUND);
+                        response.getHeaders().setLocation(URI.create(authorizationUrl));
+                        return response.setComplete();
+                    });
+        }
+
         return authService.initiateGoogleOAuth()
                 .flatMap(authorizationUrl -> {
                     response.setStatusCode(HttpStatus.FOUND);
@@ -128,17 +140,36 @@ public class AuthController {
     @Operation(summary = "Google OAuth callback", description = "Handles OAuth callback from Google and redirects to frontend")
     public Mono<Void> handleGoogleCallback(
             @RequestParam String code,
+            @RequestParam(required = false) String state,
             ServerHttpRequest httpRequest,
             ServerHttpResponse response
     ) {
+        // Check if this is a link callback
+        if (state != null && state.contains("action:link")) {
+            return authService.handleGoogleLinkCallback(code, state, httpRequest, response);
+        }
+
+        // Regular login/signup flow
         return authService.handleGoogleCallback(code)
                 .flatMap(authResponse -> redirectToFrontend(authResponse, httpRequest, response))
                 .onErrorResume(error -> redirectToLoginWithError(error, httpRequest, response));
     }
 
     @GetMapping("/oauth/github")
-    @Operation(summary = "Initiate GitHub OAuth", description = "Redirects to GitHub OAuth consent screen")
-    public Mono<Void> initiateGitHubOAuth(ServerHttpResponse response) {
+    @Operation(summary = "Initiate GitHub OAuth", description = "Redirects to GitHub OAuth consent screen. Use ?mode=link for linking to existing account.")
+    public Mono<Void> initiateGitHubOAuth(
+            @RequestParam(required = false) String mode,
+            ServerHttpResponse response
+    ) {
+        if ("link".equals(mode)) {
+            return authService.initiateGitHubOAuthLink()
+                    .flatMap(authorizationUrl -> {
+                        response.setStatusCode(HttpStatus.FOUND);
+                        response.getHeaders().setLocation(URI.create(authorizationUrl));
+                        return response.setComplete();
+                    });
+        }
+
         return authService.initiateGitHubOAuth()
                 .flatMap(authorizationUrl -> {
                     response.setStatusCode(HttpStatus.FOUND);
@@ -151,9 +182,16 @@ public class AuthController {
     @Operation(summary = "GitHub OAuth callback", description = "Handles OAuth callback from GitHub and redirects to frontend")
     public Mono<Void> handleGitHubCallback(
             @RequestParam String code,
+            @RequestParam(required = false) String state,
             ServerHttpRequest httpRequest,
             ServerHttpResponse response
     ) {
+        // Check if this is a link callback
+        if (state != null && state.contains("action:link")) {
+            return authService.handleGitHubLinkCallback(code, state, httpRequest, response);
+        }
+
+        // Regular login/signup flow
         return authService.handleGitHubCallback(code)
                 .flatMap(authResponse -> redirectToFrontend(authResponse, httpRequest, response))
                 .onErrorResume(error -> redirectToLoginWithError(error, httpRequest, response));
