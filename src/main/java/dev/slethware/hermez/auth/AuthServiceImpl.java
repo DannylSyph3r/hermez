@@ -527,7 +527,7 @@ public class AuthServiceImpl implements AuthService {
                     return redisTemplate.opsForValue()
                             .set(redisKey, userId.toString(), Duration.ofMinutes(5))
                             .then(Mono.defer(() -> {
-                                String state = "action:link,token:" + linkToken + ",redirect:/settings";
+                                String state = "action:link,token:" + linkToken + ",redirect:/dashboard/settings";
                                 String authorizationUrl = oauthProperties.getGoogle().getAuthorizationUri() +
                                         "?client_id=" + oauthProperties.getGoogle().getClientId() +
                                         "&redirect_uri=" + oauthProperties.getGoogle().getRedirectUri() +
@@ -584,7 +584,7 @@ public class AuthServiceImpl implements AuthService {
                     return redisTemplate.opsForValue()
                             .set(redisKey, userId.toString(), Duration.ofMinutes(5))
                             .then(Mono.defer(() -> {
-                                String state = "action:link,token:" + linkToken + ",redirect:/settings";
+                                String state = "action:link,token:" + linkToken + ",redirect:/dashboard/settings";
                                 String authorizationUrl = oauthProperties.getGithub().getAuthorizationUri() +
                                         "?client_id=" + oauthProperties.getGithub().getClientId() +
                                         "&redirect_uri=" + oauthProperties.getGithub().getRedirectUri() +
@@ -643,7 +643,7 @@ public class AuthServiceImpl implements AuthService {
 
     private Mono<Void> redirectToSettingsWithSuccess(String provider, ServerHttpRequest httpRequest, ServerHttpResponse response) {
         String frontendUrl = frontendUrlResolver.getFrontendUrl(httpRequest);
-        String redirectUrl = String.format("%s/settings?connected=%s", frontendUrl, provider);
+        String redirectUrl = String.format("%s/dashboard/settings?connected=%s", frontendUrl, provider);
 
         log.debug("Redirecting to settings after successful OAuth link: {}", provider);
         response.setStatusCode(HttpStatus.FOUND);
@@ -654,7 +654,7 @@ public class AuthServiceImpl implements AuthService {
     private Mono<Void> redirectToSettingsWithError(String errorMessage, ServerHttpRequest httpRequest, ServerHttpResponse response) {
         String frontendUrl = frontendUrlResolver.getFrontendUrl(httpRequest);
         String redirectUrl = String.format(
-                "%s/settings?error=oauth_link_failed&message=%s",
+                "%s/dashboard/settings?error=oauth_link_failed&message=%s",
                 frontendUrl,
                 URLEncoder.encode(errorMessage, StandardCharsets.UTF_8)
         );
