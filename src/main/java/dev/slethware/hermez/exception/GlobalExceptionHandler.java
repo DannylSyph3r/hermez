@@ -3,6 +3,7 @@ package dev.slethware.hermez.exception;
 import dev.slethware.hermez.common.models.response.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -135,5 +136,38 @@ public class GlobalExceptionHandler {
                 .build();
 
         return Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).body(response));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        log.error("Data integrity violation: {}", e.getMessage());
+
+        String errorMessage = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+        String message;
+        HttpStatus status;
+
+        // Unique constraint violations
+        if (errorMessage.contains("unique") || errorMessage.contains("duplicate")) {
+            message = "This resource already exists";
+            status = HttpStatus.CONFLICT;
+        }
+        // Foreign key violations
+        else if (errorMessage.contains("foreign key")) {
+            message = "Cannot delete resource with existing dependencies";
+            status = HttpStatus.CONFLICT;
+        }
+        // Everything else
+        else {
+            message = "Invalid data provided";
+            status = HttpStatus.BAD_REQUEST;
+        }
+
+        ErrorResponse response = ErrorResponse.builder()
+                .message(message)
+                .error(status.getReasonPhrase())
+                .statusCode(status.value())
+                .build();
+
+        return Mono.just(ResponseEntity.status(status).body(response));
     }
 }

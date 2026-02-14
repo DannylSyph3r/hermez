@@ -52,7 +52,7 @@ public class SubdomainValidator {
                 });
     }
 
-    private ValidationResult validateFormat(String subdomain) {
+    public ValidationResult validateFormat(String subdomain) {
         if (subdomain == null || subdomain.isBlank()) {
             return new ValidationResult.InvalidFormat(subdomain, "Subdomain cannot be empty");
         }

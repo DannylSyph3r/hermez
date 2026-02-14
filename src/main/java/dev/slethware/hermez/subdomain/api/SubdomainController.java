@@ -3,7 +3,10 @@ package dev.slethware.hermez.subdomain.api;
 import dev.slethware.hermez.common.models.response.ApiResponse;
 import dev.slethware.hermez.common.util.ApiResponseUtil;
 import dev.slethware.hermez.common.util.SecurityContextUtil;
+import dev.slethware.hermez.exception.BadRequestException;
 import dev.slethware.hermez.subdomain.SubdomainService;
+import dev.slethware.hermez.subdomain.validation.SubdomainValidator;
+import dev.slethware.hermez.subdomain.validation.ValidationResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -20,6 +23,7 @@ import reactor.core.publisher.Mono;
 public class SubdomainController {
 
     private final SubdomainService subdomainService;
+    private final SubdomainValidator subdomainValidator;
 
     @GetMapping
     @Operation(
@@ -51,9 +55,11 @@ public class SubdomainController {
             description = "Retrieves details of a specific subdomain reservation owned by the authenticated user"
     )
     public Mono<ApiResponse<SubdomainResponse>> getReservation(@PathVariable String subdomain) {
-        return SecurityContextUtil.getCurrentUserId()
-                .flatMap(userId -> subdomainService.getReservation(subdomain, userId))
-                .map(response -> ApiResponseUtil.successFull("Subdomain details retrieved successfully", response));
+        return validateSubdomainFormat(subdomain)
+                .flatMap(validSubdomain -> SecurityContextUtil.getCurrentUserId()
+                        .flatMap(userId -> subdomainService.getReservation(validSubdomain, userId))
+                        .map(response -> ApiResponseUtil.successFull("Subdomain details retrieved successfully", response))
+                );
     }
 
     @DeleteMapping("/{subdomain}")
@@ -62,9 +68,11 @@ public class SubdomainController {
             description = "Releases a subdomain reservation. Cannot release if subdomain has an active tunnel."
     )
     public Mono<ApiResponse<Void>> releaseSubdomain(@PathVariable String subdomain) {
-        return SecurityContextUtil.getCurrentUserId()
-                .flatMap(userId -> subdomainService.releaseSubdomain(subdomain, userId))
-                .then(Mono.fromCallable(() -> ApiResponseUtil.successFullVoid("Subdomain released successfully")));
+        return validateSubdomainFormat(subdomain)
+                .flatMap(validSubdomain -> SecurityContextUtil.getCurrentUserId()
+                        .flatMap(userId -> subdomainService.releaseSubdomain(validSubdomain, userId))
+                        .then(Mono.fromCallable(() -> ApiResponseUtil.successFullVoid("Subdomain released successfully")))
+                );
     }
 
     @GetMapping("/{subdomain}/available")
@@ -73,8 +81,25 @@ public class SubdomainController {
             description = "Checks if a subdomain is available for reservation. Returns availability status and reason."
     )
     public Mono<ApiResponse<AvailabilityResponse>> checkAvailability(@PathVariable String subdomain) {
-        return SecurityContextUtil.getCurrentUserId()
-                .flatMap(userId -> subdomainService.checkAvailability(subdomain, userId))
-                .map(response -> ApiResponseUtil.successFull("Availability checked successfully", response));
+        return validateSubdomainFormat(subdomain)
+                .flatMap(validSubdomain -> SecurityContextUtil.getCurrentUserId()
+                        .flatMap(userId -> subdomainService.checkAvailability(validSubdomain, userId))
+                        .map(response -> ApiResponseUtil.successFull("Availability checked successfully", response))
+                );
+    }
+
+    private Mono<String> validateSubdomainFormat(String subdomain) {
+        ValidationResult result = subdomainValidator.validateFormat(subdomain);
+
+        if (result instanceof ValidationResult.Valid valid) {
+            return Mono.just(valid.subdomain());
+        }
+
+        if (result instanceof ValidationResult.InvalidFormat invalid) {
+            return Mono.error(new BadRequestException(invalid.reason()));
+        }
+
+        // Hailmary Fallback
+        return Mono.error(new BadRequestException("Invalid subdomain format"));
     }
 }
