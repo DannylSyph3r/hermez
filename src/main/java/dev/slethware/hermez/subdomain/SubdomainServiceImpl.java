@@ -18,9 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -72,6 +70,26 @@ public class SubdomainServiceImpl implements SubdomainService {
                                             tier.getMaxSubdomainReservations(),
                                             subdomains.size()
                                     )
+                            ));
+                });
+    }
+
+    @Override
+    public Mono<SubdomainResponse> getReservation(String subdomain, UUID userId) {
+        log.debug("Fetching reservation details for subdomain: {} and user: {}", subdomain, userId);
+
+        return reservationRepository.findById(subdomain)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Subdomain reservation not found")))
+                .flatMap(reservation -> {
+                    if (!reservation.getUserId().equals(userId)) {
+                        return Mono.error(new ForbiddenException("You do not own this subdomain"));
+                    }
+
+                    return checkIfActive(reservation)
+                            .map(activeInfo -> SubdomainResponse.from(
+                                    reservation,
+                                    activeInfo.isActive(),
+                                    activeInfo.tunnelId()
                             ));
                 });
     }

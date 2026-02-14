@@ -1,5 +1,6 @@
 package dev.slethware.hermez.user;
 
+import dev.slethware.hermez.common.util.SecurityContextUtil;
 import dev.slethware.hermez.exception.BadRequestException;
 import dev.slethware.hermez.exception.UnauthorizedException;
 import dev.slethware.hermez.subdomain.SubdomainReservationRepository;
@@ -9,14 +10,12 @@ import dev.slethware.hermez.user.api.UpdateNameRequest;
 import dev.slethware.hermez.user.api.UserProfileResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -30,7 +29,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Mono<UserProfileResponse> getCurrentUser() {
-        return getCurrentUserId()
+        return SecurityContextUtil.getCurrentUserId()
                 .flatMap(userId -> userRepository.findById(userId)
                         .switchIfEmpty(Mono.error(new UnauthorizedException("User not found")))
                 )
@@ -42,7 +41,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Mono<UserProfileResponse> updateName(UpdateNameRequest request) {
-        return getCurrentUserId()
+        return SecurityContextUtil.getCurrentUserId()
                 .flatMap(userId -> userRepository.findById(userId)
                         .switchIfEmpty(Mono.error(new UnauthorizedException("User not found")))
                 )
@@ -59,7 +58,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Mono<UserProfileResponse> updateAvatar(UpdateAvatarRequest request) {
-        return getCurrentUserId()
+        return SecurityContextUtil.getCurrentUserId()
                 .flatMap(userId -> userRepository.findById(userId)
                         .switchIfEmpty(Mono.error(new UnauthorizedException("User not found")))
                 )
@@ -76,7 +75,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Mono<Void> changePassword(ChangePasswordRequest request) {
-        return getCurrentUserId()
+        return SecurityContextUtil.getCurrentUserId()
                 .flatMap(userId -> userRepository.findById(userId)
                         .switchIfEmpty(Mono.error(new UnauthorizedException("User not found")))
                 )
@@ -122,7 +121,7 @@ public class UserServiceImpl implements UserService {
             return Mono.error(new BadRequestException("Invalid provider. Must be 'google' or 'github'."));
         }
 
-        return getCurrentUserId()
+        return SecurityContextUtil.getCurrentUserId()
                 .flatMap(userId -> {
                     log.info("Attempting to disconnect {} OAuth for user: {}", provider, userId);
 
@@ -168,7 +167,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Mono<Void> deleteAccount() {
-        return getCurrentUserId()
+        return SecurityContextUtil.getCurrentUserId()
                 .flatMap(userId -> userRepository.findById(userId)
                         .switchIfEmpty(Mono.error(new UnauthorizedException("User not found")))
                 )
@@ -178,12 +177,5 @@ public class UserServiceImpl implements UserService {
                 })
                 .doOnSuccess(user -> log.info("User account soft deleted: {}", user.getEmail()))
                 .then();
-    }
-
-    private Mono<UUID> getCurrentUserId() {
-        return ReactiveSecurityContextHolder.getContext()
-                .map(securityContext -> securityContext.getAuthentication().getName())
-                .map(UUID::fromString)
-                .switchIfEmpty(Mono.error(new UnauthorizedException("Not authenticated")));
     }
 }

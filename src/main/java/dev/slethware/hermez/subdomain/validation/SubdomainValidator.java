@@ -42,13 +42,13 @@ public class SubdomainValidator {
         }
 
         // Step 3: Check active tunnel in Redis
-        return checkActiveTunnel(subdomain, userId)
+        return checkActiveTunnel(subdomain)
                 .flatMap(result -> {
                     if (result instanceof ValidationResult.InUse) {
                         return Mono.just(result);
                     }
                     // Step 4: Check reservation in PostgreSQL
-                    return checkReservation(subdomain, userId);
+                    return checkReservation(subdomain);
                 });
     }
 
@@ -77,7 +77,7 @@ public class SubdomainValidator {
                 .anyMatch(blocked -> blocked.equalsIgnoreCase(subdomain));
     }
 
-    private Mono<ValidationResult> checkActiveTunnel(String subdomain, UUID userId) {
+    private Mono<ValidationResult> checkActiveTunnel(String subdomain) {
         String redisKey = "tunnel:" + subdomain;
 
         return redisTemplate.opsForValue()
@@ -87,13 +87,8 @@ public class SubdomainValidator {
                         JsonNode node = objectMapper.readTree(tunnelJson);
                         UUID ownerId = UUID.fromString(node.get("user_id").asText());
 
-                        if (!ownerId.equals(userId)) {
-                            log.debug("Subdomain {} is actively in use by user: {}", subdomain, ownerId);
-                            return Mono.just((ValidationResult) new ValidationResult.InUse(subdomain, ownerId));
-                        }
-
-                        log.debug("Subdomain {} is actively in use by requesting user", subdomain);
-                        return Mono.just((ValidationResult) new ValidationResult.Valid(subdomain));
+                        log.debug("Subdomain {} is actively in use by user: {}", subdomain, ownerId);
+                        return Mono.just((ValidationResult) new ValidationResult.InUse(subdomain, ownerId));
                     } catch (Exception e) {
                         log.error("Error parsing tunnel data from Redis for subdomain: {}", subdomain, e);
                         return Mono.just((ValidationResult) new ValidationResult.Valid(subdomain));
@@ -102,17 +97,12 @@ public class SubdomainValidator {
                 .defaultIfEmpty(new ValidationResult.Valid(subdomain));
     }
 
-    private Mono<ValidationResult> checkReservation(String subdomain, UUID userId) {
+    private Mono<ValidationResult> checkReservation(String subdomain) {
         return reservationRepository.findById(subdomain)
-                .map(reservation -> {
-                    if (!reservation.getUserId().equals(userId)) {
-                        log.debug("Subdomain {} is reserved by user: {}", subdomain, reservation.getUserId());
-                        return new ValidationResult.Reserved(subdomain, reservation.getUserId()); // No cast
-                    }
-
-                    log.debug("Subdomain {} is reserved by requesting user", subdomain);
-                    return (ValidationResult) new ValidationResult.Valid(subdomain); // Cast here
-                })
+                .map(reservation -> (ValidationResult) new ValidationResult.Reserved(
+                        subdomain,
+                        reservation.getUserId()
+                ))
                 .defaultIfEmpty(new ValidationResult.Valid(subdomain));
     }
 }

@@ -11,6 +11,7 @@ public interface SubdomainService {
 
     Mono<SubdomainResponse> reserveSubdomain(String subdomain, UUID userId);
     Mono<SubdomainListResponse> getReservations(UUID userId);
+    Mono<SubdomainResponse> getReservation(String subdomain, UUID userId);
     Mono<Void> releaseSubdomain(String subdomain, UUID userId);
     Mono<AvailabilityResponse> checkAvailability(String subdomain, UUID userId);
 }
