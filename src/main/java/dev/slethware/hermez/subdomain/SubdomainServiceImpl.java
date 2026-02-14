@@ -128,7 +128,7 @@ public class SubdomainServiceImpl implements SubdomainService {
                     case ValidationResult.Valid ignored ->
                             new AvailabilityResponse(subdomain, true, "available");
                     case ValidationResult.InvalidFormat(String ignored, var reason) ->
-                            new AvailabilityResponse(subdomain, false, "invalid_format");
+                            new AvailabilityResponse(subdomain, false, reason);
                     case ValidationResult.Blocked ignored ->
                             new AvailabilityResponse(subdomain, false, "blocked");
                     case ValidationResult.InUse(String ignored, var ownerId) -> {
@@ -166,10 +166,7 @@ public class SubdomainServiceImpl implements SubdomainService {
                 });
     }
 
-    private Mono<SubdomainResponse> handleValidationResult(
-            ValidationResult result,
-            String subdomain,
-            UUID userId
+    private Mono<SubdomainResponse> handleValidationResult(ValidationResult result, String subdomain, UUID userId
     ) {
         return switch (result) {
             case ValidationResult.Valid ignored -> createReservation(subdomain, userId);
@@ -177,7 +174,7 @@ public class SubdomainServiceImpl implements SubdomainService {
                     Mono.error(new BadRequestException(reason));
             case ValidationResult.Blocked ignored ->
                     Mono.error(new BadRequestException("Subdomain is not allowed"));
-            case ValidationResult.InUse(String ignored, var ownerId) ->
+            case ValidationResult.InUse(String ignored, var ignored2) ->
                     Mono.error(new ConflictException("Subdomain is currently in use"));
             case ValidationResult.Reserved(String ignored, var ownerId) -> {
                 if (ownerId.equals(userId)) {
