@@ -123,4 +123,17 @@ public class GlobalExceptionHandler {
 
         return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response));
     }
+
+    @ExceptionHandler(ConflictException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleConflictException(ConflictException e) {
+        log.error("Conflict: {}", e.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+                .message(e.getMessage())
+                .error("Conflict")
+                .statusCode(HttpStatus.CONFLICT.value())
+                .build();
+
+        return Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).body(response));
+    }
 }
