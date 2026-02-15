@@ -41,6 +41,7 @@ public class HermezConfigProperties {
     public static class SubdomainConfig {
         private int minLength = 3;
         private int maxLength = 63;
+        private String baseDomain = "hermez.one";
         private List<String> blocked = List.of(
                 "www", "api", "admin", "dashboard", "mail", "ftp",
                 "smtp", "pop", "imap", "ns", "dns", "whois", "ssl",

@@ -2,6 +2,7 @@ package dev.slethware.hermez.subdomain;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.slethware.hermez.config.HermezConfigProperties;
 import dev.slethware.hermez.exception.BadRequestException;
 import dev.slethware.hermez.exception.ConflictException;
 import dev.slethware.hermez.exception.ForbiddenException;
@@ -32,6 +33,7 @@ public class SubdomainServiceImpl implements SubdomainService {
     private final UserRepository userRepository;
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final HermezConfigProperties configProperties;
 
     @Override
     public Mono<SubdomainResponse> reserveSubdomain(String subdomain, UUID userId) {
@@ -59,7 +61,8 @@ public class SubdomainServiceImpl implements SubdomainService {
                                     .map(activeInfo -> SubdomainResponse.from(
                                             reservation,
                                             activeInfo.isActive(),
-                                            activeInfo.tunnelId()
+                                            activeInfo.tunnelId(),
+                                            configProperties.getSubdomain().getBaseDomain()
                                     ))
                             )
                             .collectList()
@@ -89,7 +92,8 @@ public class SubdomainServiceImpl implements SubdomainService {
                             .map(activeInfo -> SubdomainResponse.from(
                                     reservation,
                                     activeInfo.isActive(),
-                                    activeInfo.tunnelId()
+                                    activeInfo.tunnelId(),
+                                    configProperties.getSubdomain().getBaseDomain()
                             ));
                 });
     }
@@ -166,8 +170,7 @@ public class SubdomainServiceImpl implements SubdomainService {
                 });
     }
 
-    private Mono<SubdomainResponse> handleValidationResult(ValidationResult result, String subdomain, UUID userId
-    ) {
+    private Mono<SubdomainResponse> handleValidationResult(ValidationResult result, String subdomain, UUID userId) {
         return switch (result) {
             case ValidationResult.Valid ignored -> createReservation(subdomain, userId);
             case ValidationResult.InvalidFormat(String ignored, var reason) ->
@@ -184,7 +187,8 @@ public class SubdomainServiceImpl implements SubdomainService {
                                     .map(activeInfo -> SubdomainResponse.from(
                                             reservation,
                                             activeInfo.isActive(),
-                                            activeInfo.tunnelId()
+                                            activeInfo.tunnelId(),
+                                            configProperties.getSubdomain().getBaseDomain()
                                     ))
                             );
                 }
@@ -198,12 +202,16 @@ public class SubdomainServiceImpl implements SubdomainService {
                 .subdomain(subdomain)
                 .userId(userId)
                 .createdAt(LocalDateTime.now())
-                .expiresAt(null) // Permanent reservation for now
                 .build();
 
         return reservationRepository.save(reservation)
                 .doOnSuccess(r -> log.info("Subdomain reserved: {} for user: {}", subdomain, userId))
-                .map(r -> SubdomainResponse.from(r, false, null));
+                .map(r -> SubdomainResponse.from(
+                        r,
+                        false,
+                        null,
+                        configProperties.getSubdomain().getBaseDomain()
+                ));
     }
 
     private Mono<ActiveTunnelInfo> checkIfActive(SubdomainReservation reservation) {
