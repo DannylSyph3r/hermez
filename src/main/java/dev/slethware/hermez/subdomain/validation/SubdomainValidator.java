@@ -98,7 +98,7 @@ public class SubdomainValidator {
     }
 
     private Mono<ValidationResult> checkReservation(String subdomain) {
-        return reservationRepository.findById(subdomain)
+        return reservationRepository.findBySubdomain(subdomain)
                 .map(reservation -> (ValidationResult) new ValidationResult.Reserved(
                         subdomain,
                         reservation.getUserId()

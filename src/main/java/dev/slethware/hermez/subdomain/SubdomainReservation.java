@@ -18,6 +18,7 @@ import java.util.UUID;
 public class SubdomainReservation {
 
     @Id
+    private UUID id;
     private String subdomain;
     private UUID userId;
     private LocalDateTime createdAt;

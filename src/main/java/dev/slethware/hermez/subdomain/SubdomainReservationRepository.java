@@ -10,12 +10,11 @@ import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 @Repository
-public interface SubdomainReservationRepository extends ReactiveCrudRepository<SubdomainReservation, String> {
+public interface SubdomainReservationRepository extends ReactiveCrudRepository<SubdomainReservation, UUID> {
 
     Flux<SubdomainReservation> findByUserId(UUID userId);
-
+    Mono<SubdomainReservation> findBySubdomain(String subdomain);  // ← Add this
     Mono<Boolean> existsBySubdomain(String subdomain);
-
     @Modifying
     @Query("DELETE FROM subdomain_reservations WHERE expires_at < NOW()")
     Mono<Integer> deleteExpired();

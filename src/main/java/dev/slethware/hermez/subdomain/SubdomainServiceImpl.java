@@ -81,7 +81,7 @@ public class SubdomainServiceImpl implements SubdomainService {
     public Mono<SubdomainResponse> getReservation(String subdomain, UUID userId) {
         log.debug("Fetching reservation details for subdomain: {} and user: {}", subdomain, userId);
 
-        return reservationRepository.findById(subdomain)
+        return reservationRepository.findBySubdomain(subdomain)
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Subdomain reservation not found")))
                 .flatMap(reservation -> {
                     if (!reservation.getUserId().equals(userId)) {
@@ -102,7 +102,7 @@ public class SubdomainServiceImpl implements SubdomainService {
     public Mono<Void> releaseSubdomain(String subdomain, UUID userId) {
         log.info("Attempting to release subdomain: {} for user: {}", subdomain, userId);
 
-        return reservationRepository.findById(subdomain)
+        return reservationRepository.findBySubdomain(subdomain)
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Subdomain reservation not found")))
                 .flatMap(reservation -> {
                     if (!reservation.getUserId().equals(userId)) {
@@ -182,7 +182,7 @@ public class SubdomainServiceImpl implements SubdomainService {
             case ValidationResult.Reserved(String ignored, var ownerId) -> {
                 if (ownerId.equals(userId)) {
                     // User already owns this reservation
-                    yield reservationRepository.findById(subdomain)
+                    yield reservationRepository.findBySubdomain(subdomain)
                             .flatMap(reservation -> checkIfActive(reservation)
                                     .map(activeInfo -> SubdomainResponse.from(
                                             reservation,
