@@ -158,7 +158,7 @@ public class OAuth2Handler {
                 .email(email)
                 .name(name)
                 .passwordHash(null)
-                .tier("free")
+                .tier("chelys")
                 .emailVerified(true)
                 .createdAt(LocalDateTime.now())
                 .lastLoginAt(LocalDateTime.now())
