@@ -40,6 +40,9 @@ public class SecurityConfig {
                         .pathMatchers("/api/v1/auth/oauth/github/callback").permitAll()
                         .pathMatchers("/api/v1/waitlist/**").permitAll()
 
+                        // Websocket inlet
+                        .pathMatchers("/connect").permitAll()
+
                         // Documentation
                         .pathMatchers("/api-docs/**").permitAll()
                         .pathMatchers("/docs/**").permitAll()
