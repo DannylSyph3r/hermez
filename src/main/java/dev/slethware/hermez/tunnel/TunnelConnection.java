@@ -25,15 +25,19 @@ public class TunnelConnection {
     @Getter
     private final String subdomain;
 
+    @Getter
+    private final TunnelInfo tunnelInfo;
+
     private final WebSocketSession session;
     private final Sinks.Many<byte[]> outboundSink;
     private final ConcurrentHashMap<UUID, MonoSink<HttpResponseMessage>> pendingRequests;
     private final ConcurrentHashMap<UUID, ChunkedResponseAccumulator> pendingChunks;
     private final AtomicLong lastPongTime;
 
-    public TunnelConnection(WebSocketSession session, String subdomain) {
+    public TunnelConnection(WebSocketSession session, TunnelInfo tunnelInfo) {
         this.session        = session;
-        this.subdomain      = subdomain;
+        this.tunnelInfo     = tunnelInfo;
+        this.subdomain      = tunnelInfo.subdomain();
         this.outboundSink   = Sinks.many().unicast().onBackpressureBuffer();
         this.pendingRequests = new ConcurrentHashMap<>();
         this.pendingChunks   = new ConcurrentHashMap<>();
@@ -106,13 +110,10 @@ public class TunnelConnection {
 
     public Mono<Void> close() {
         outboundSink.tryEmitComplete();
-
         pendingChunks.clear();
-
         pendingRequests.forEach((id, sink) ->
                 sink.error(new IllegalStateException("Tunnel connection closed for subdomain: " + subdomain)));
         pendingRequests.clear();
-
         return session.close()
                 .doOnSuccess(v -> log.info("WebSocket session closed for tunnel: {}", subdomain))
                 .onErrorResume(e -> {

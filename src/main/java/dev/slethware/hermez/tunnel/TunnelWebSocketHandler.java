@@ -64,7 +64,7 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
                 .flatMap(userId -> validateSubdomain(session, subdomain, userId)
                         .flatMap(valid -> {
                             TunnelInfo info = buildTunnelInfo(userId, subdomain, localPort);
-                            TunnelConnection connection = new TunnelConnection(session, subdomain);
+                            TunnelConnection connection = new TunnelConnection(session, info);
 
                             return tunnelRegistry.register(subdomain, connection, info, userId)
                                     .doOnSuccess(v -> {
