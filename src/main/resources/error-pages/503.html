@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tunnel Offline · Hermez</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a; color: #e2e2e2;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+        }
+        .card { text-align: center; max-width: 460px; padding: 2rem; }
+        .logo { font-size: 1.5rem; font-weight: 700; color: #7c3aed; margin-bottom: 2rem; letter-spacing: -0.3px; }
+        .code { font-size: 5rem; font-weight: 800; color: #7c3aed; line-height: 1; }
+        .title { font-size: 1.2rem; font-weight: 600; margin: 0.75rem 0; }
+        .bar { width: 36px; height: 2px; background: #7c3aed; margin: 1.25rem auto; border-radius: 2px; }
+        .body { font-size: 0.9rem; color: #888; line-height: 1.7; }
+        code { color: #a78bfa; font-family: 'SF Mono', 'Fira Code', monospace; }
+        .footer { margin-top: 2rem; font-size: 0.78rem; color: #444; }
+        .footer a { color: #7c3aed; text-decoration: none; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="logo">⚡ Hermez</div>
+    <div class="code">503</div>
+    <div class="title">Tunnel Offline</div>
+    <div class="bar"></div>
+    <div class="body">
+        The tunnel <code>{{subdomain}}</code> exists but is currently unreachable.<br>
+        The CLI client may have disconnected. Reconnect with <code>hermez http &lt;port&gt;</code>.
+    </div>
+    <div class="footer"><a href="https://hermez.one">hermez.one</a> · Bridge worlds at divine speed</div>
+</div>
+</body>
+</html>
