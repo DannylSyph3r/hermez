@@ -1,38 +1,418 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tunnel Not Found · Hermez</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tunnel Not Found — Hermez</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+            href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,400;1,500&family=Geist:wght@300;400;500&display=swap"
+            rel="stylesheet"
+    />
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #0a0a0a; color: #e2e2e2;
-            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #000;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            -webkit-font-smoothing: antialiased;
+            position: relative;
+            overflow: hidden;
         }
-        .card { text-align: center; max-width: 460px; padding: 2rem; }
-        .logo { font-size: 1.5rem; font-weight: 700; color: #7c3aed; margin-bottom: 2rem; letter-spacing: -0.3px; }
-        .code { font-size: 5rem; font-weight: 800; color: #7c3aed; line-height: 1; }
-        .title { font-size: 1.2rem; font-weight: 600; margin: 0.75rem 0; }
-        .bar { width: 36px; height: 2px; background: #7c3aed; margin: 1.25rem auto; border-radius: 2px; }
-        .body { font-size: 0.9rem; color: #888; line-height: 1.7; }
-        code { color: #a78bfa; font-family: 'SF Mono', 'Fira Code', monospace; }
-        .footer { margin-top: 2rem; font-size: 0.78rem; color: #444; }
-        .footer a { color: #7c3aed; text-decoration: none; }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 42%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 680px;
+            height: 400px;
+            background: radial-gradient(ellipse at center,
+            rgba(210, 100, 160, 0.13) 0%,
+            rgba(120, 100, 180, 0.06) 50%,
+            transparent 72%
+            );
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ─── Logo ─── */
+        .logo-mark {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 64px;
+        }
+        .logo-mark img {
+            height: 44px;
+            width: auto;
+            display: block;
+        }
+        .logo-mark .wordmark {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.03em;
+            background: linear-gradient(to bottom, #ffffff, rgba(255,255,255,0.5));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ─── 404 Digit Display ─── */
+        .digit-display {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: flex-start;
+            gap: 18px;
+        }
+
+        /*
+          5-column × 7-row dot-matrix grids.
+
+          "4" — diagonal left stroke, crossbar, right stem:
+            · · · █ ·
+            · · █ █ ·
+            · █ · █ ·
+            █ · · █ ·
+            █ █ █ █ █
+            · · · █ ·
+            · · · █ ·
+
+          "0" — rounded rectangle outline:
+            · █ █ █ ·
+            █ · · · █
+            █ · · · █
+            █ · · · █
+            █ · · · █
+            █ · · · █
+            · █ █ █ ·
+        */
+        .digit {
+            display: grid;
+            grid-template-columns: repeat(5, 36px);
+            grid-template-rows:    repeat(7, 36px);
+            gap: 5px;
+        }
+
+        /* 0 uses 4 columns — taller oval silhouette, less squat */
+        .digit.digit-zero {
+            grid-template-columns: repeat(4, 36px);
+        }
+
+        .px {
+            width: 36px;
+            height: 36px;
+            border-radius: 7px;
+            border: 1px solid #1c1d1e;
+            background: linear-gradient(to bottom, #0a0b0c, #0e0f10);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 400;
+            font-family: -apple-system, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', sans-serif;
+            letter-spacing: 0.01em;
+            user-select: none;
+        }
+
+        /* OFF */
+        .px.off {
+            border-color: #0f1011;
+            background: linear-gradient(to bottom, #060607, #090909);
+            color: rgba(255, 255, 255, 0.08);
+            opacity: 0.28;
+        }
+
+        /* ON — light pink-purple */
+        .px.on {
+            border-color: rgba(220, 110, 170, 0.60);
+            background: linear-gradient(to bottom, #2c1020, #1f0b17);
+            color: rgba(245, 175, 215, 0.92);
+            box-shadow:
+                    0 0 0 1px rgba(220, 110, 170, 0.22),
+                    0 0 14px rgba(220, 110, 170, 0.45),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+            text-shadow: 0 0 8px rgba(230, 140, 190, 0.55);
+            animation: breathe 3s ease-in-out infinite;
+        }
+
+        .digit:nth-child(1) .on:nth-child(5n)   { animation-delay: 0.0s; }
+        .digit:nth-child(1) .on:nth-child(5n+1) { animation-delay: 0.6s; }
+        .digit:nth-child(1) .on:nth-child(5n+2) { animation-delay: 1.2s; }
+        .digit:nth-child(2) .on:nth-child(5n)   { animation-delay: 0.3s; }
+        .digit:nth-child(2) .on:nth-child(5n+1) { animation-delay: 0.9s; }
+        .digit:nth-child(2) .on:nth-child(5n+2) { animation-delay: 1.5s; }
+        .digit:nth-child(3) .on:nth-child(5n)   { animation-delay: 0.2s; }
+        .digit:nth-child(3) .on:nth-child(5n+1) { animation-delay: 0.8s; }
+        .digit:nth-child(3) .on:nth-child(5n+2) { animation-delay: 1.4s; }
+
+        @keyframes breathe {
+            0%, 100% {
+                box-shadow:
+                        0 0 0 1px rgba(220, 110, 170, 0.22),
+                        0 0 14px rgba(220, 110, 170, 0.45),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.07);
+            }
+            50% {
+                box-shadow:
+                        0 0 0 1px rgba(220, 110, 170, 0.36),
+                        0 0 24px rgba(220, 110, 170, 0.65),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.10);
+            }
+        }
+
+        /* ─── Error Content ─── */
+        .content {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-top: 40px;
+            gap: 12px;
+            max-width: 480px;
+            padding: 0 24px;
+        }
+
+        .error-heading {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-style: italic;
+            font-weight: 400;
+            font-size: 26px;
+            line-height: 1.25;
+            background: linear-gradient(90deg, #9F2B68 0%, #7B6FA0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.01em;
+        }
+
+        .error-description {
+            font-size: 14px;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.42);
+            line-height: 1.72;
+        }
+
+        .error-description code {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12.5px;
+            color: rgba(220, 110, 170, 0.95);
+            background: rgba(200, 80, 150, 0.10);
+            border: 1px solid rgba(200, 80, 150, 0.22);
+            padding: 1px 6px;
+            border-radius: 4px;
+            letter-spacing: 0.01em;
+        }
+
+        /* ─── Footer ─── */
+        .page-footer {
+            position: relative;
+            z-index: 10;
+            margin-top: 48px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 7px;
+        }
+        .footer-link {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.55);
+            text-decoration: none;
+            transition: color 200ms ease;
+        }
+        .footer-link:hover { color: rgba(255, 255, 255, 0.90); }
+        .footer-tagline {
+            font-size: 12px;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.35);
+            font-style: italic;
+            letter-spacing: 0.03em;
+        }
     </style>
 </head>
 <body>
-<div class="card">
-    <div class="logo">⚡ Hermez</div>
-    <div class="code">404</div>
-    <div class="title">Tunnel Not Found</div>
-    <div class="bar"></div>
-    <div class="body">
-        No active tunnel is registered for <code>{{subdomain}}</code>.<br>
-        Run <code>hermez http &lt;port&gt;</code> to open a tunnel.
-    </div>
-    <div class="footer"><a href="https://hermez.one">hermez.one</a> · Bridge worlds at divine speed</div>
+
+<div class="logo-mark">
+    <img src="/assets/hermez-logo.png" alt="Hermez" onerror="this.style.display='none'" />
+    <span class="wordmark">hermez.</span>
 </div>
+
+<!--
+  5×7 dot-matrix 404.
+  "4" uses a diagonal left stroke — · · · █ · / · · █ █ · / · █ · █ · / █ · · █ · / █ █ █ █ █ / · · · █ · / · · · █ ·
+  "0" is a clean rounded rectangle — · █ █ █ · / █ · · · █ / █ · · · █ / █ · · · █ / █ · · · █ / █ · · · █ / · █ █ █ ·
+  Key labels are real keyboard characters spread across the grid.
+-->
+<div class="digit-display" aria-label="404" role="img">
+
+    <!-- ══ Digit: 4 (left) ══ -->
+    <div class="digit">
+        <!-- row 1: · · · █ · -->
+        <div class="px off">1</div>
+        <div class="px off">2</div>
+        <div class="px off">3</div>
+        <div class="px on">4</div>
+        <div class="px off">5</div>
+        <!-- row 2: · · █ █ · -->
+        <div class="px off">Q</div>
+        <div class="px off">W</div>
+        <div class="px on">E</div>
+        <div class="px on">R</div>
+        <div class="px off">T</div>
+        <!-- row 3: · █ · █ · -->
+        <div class="px off">A</div>
+        <div class="px on">S</div>
+        <div class="px off">D</div>
+        <div class="px on">F</div>
+        <div class="px off">G</div>
+        <!-- row 4: █ · · █ · -->
+        <div class="px on">Z</div>
+        <div class="px off">X</div>
+        <div class="px off">C</div>
+        <div class="px on">V</div>
+        <div class="px off">B</div>
+        <!-- row 5: █ █ █ █ █ -->
+        <div class="px on">⇥</div>
+        <div class="px on">⌫</div>
+        <div class="px on">↵</div>
+        <div class="px on">⇧</div>
+        <div class="px on">⌃</div>
+        <!-- row 6: · · · █ · -->
+        <div class="px off">fn</div>
+        <div class="px off">⌥</div>
+        <div class="px off">⌘</div>
+        <div class="px on">sp</div>
+        <div class="px off">⌘</div>
+        <!-- row 7: · · · █ · -->
+        <div class="px off">←</div>
+        <div class="px off">↑</div>
+        <div class="px off">↓</div>
+        <div class="px on">→</div>
+        <div class="px off">esc</div>
+    </div>
+
+    <!-- ══ Digit: 0 — 4-col × 7-row, slim oval ══ -->
+    <!--
+      · █ █ ·
+      █ · · █
+      █ · · █
+      █ · · █
+      █ · · █
+      █ · · █
+      · █ █ ·
+    -->
+    <div class="digit digit-zero">
+        <!-- row 1: · █ █ · -->
+        <div class="px off">7</div>
+        <div class="px on">8</div>
+        <div class="px on">9</div>
+        <div class="px off">0</div>
+        <!-- row 2: █ · · █ -->
+        <div class="px on">Y</div>
+        <div class="px off">U</div>
+        <div class="px off">I</div>
+        <div class="px on">O</div>
+        <!-- row 3: █ · · █ -->
+        <div class="px on">H</div>
+        <div class="px off">J</div>
+        <div class="px off">K</div>
+        <div class="px on">L</div>
+        <!-- row 4: █ · · █ -->
+        <div class="px on">N</div>
+        <div class="px off">M</div>
+        <div class="px off">,</div>
+        <div class="px on">.</div>
+        <!-- row 5: █ · · █ -->
+        <div class="px on">-</div>
+        <div class="px off">=</div>
+        <div class="px off">[</div>
+        <div class="px on">]</div>
+        <!-- row 6: █ · · █ -->
+        <div class="px on">'</div>
+        <div class="px off">⌫</div>
+        <div class="px off">↩</div>
+        <div class="px on">⇧</div>
+        <!-- row 7: · █ █ · -->
+        <div class="px off">⌘</div>
+        <div class="px on">⌥</div>
+        <div class="px on">sp</div>
+        <div class="px off">⌘</div>
+    </div>
+
+    <!-- ══ Digit: 4 (right) ══ -->
+    <div class="digit">
+        <!-- row 1: · · · █ · -->
+        <div class="px off">!</div>
+        <div class="px off">@</div>
+        <div class="px off">#</div>
+        <div class="px on">$</div>
+        <div class="px off">%</div>
+        <!-- row 2: · · █ █ · -->
+        <div class="px off">^</div>
+        <div class="px off">&</div>
+        <div class="px on">*</div>
+        <div class="px on">(</div>
+        <div class="px off">)</div>
+        <!-- row 3: · █ · █ · -->
+        <div class="px off">_</div>
+        <div class="px on">+</div>
+        <div class="px off">{</div>
+        <div class="px on">}</div>
+        <div class="px off">|</div>
+        <!-- row 4: █ · · █ · -->
+        <div class="px on">~</div>
+        <div class="px off">`</div>
+        <div class="px off">?</div>
+        <div class="px on">&gt;</div>
+        <div class="px off">&lt;</div>
+        <!-- row 5: █ █ █ █ █ -->
+        <div class="px on">F1</div>
+        <div class="px on">F2</div>
+        <div class="px on">F3</div>
+        <div class="px on">F4</div>
+        <div class="px on">F5</div>
+        <!-- row 6: · · · █ · -->
+        <div class="px off">F6</div>
+        <div class="px off">F7</div>
+        <div class="px off">F8</div>
+        <div class="px on">F9</div>
+        <div class="px off">F10</div>
+        <!-- row 7: · · · █ · -->
+        <div class="px off">⎙</div>
+        <div class="px off">⏏</div>
+        <div class="px off">⌧</div>
+        <div class="px on">⏎</div>
+        <div class="px off">⎋</div>
+    </div>
+
+</div>
+
+<div class="content">
+    <h1 class="error-heading">Tunnel Not Found</h1>
+    <p class="error-description">
+        No active tunnel is registered for
+        <code>{{subdomain}}.hermez.one</code>.
+        <br />
+        Run <code>hermez http &lt;port&gt;</code> to open a tunnel.
+    </p>
+</div>
+
+<footer class="page-footer">
+    <a href="https://hermez.one" class="footer-link">hermez.one</a>
+    <p class="footer-tagline">As above, so below. As local, so global.</p>
+</footer>
+
 </body>
 </html>
