@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record TunnelInfo(
+        @JsonProperty("tunnel_id")      UUID tunnelId,
         @JsonProperty("server_id")      String serverId,
         @JsonProperty("server_address") String serverAddress,
         @JsonProperty("user_id")        UUID userId,

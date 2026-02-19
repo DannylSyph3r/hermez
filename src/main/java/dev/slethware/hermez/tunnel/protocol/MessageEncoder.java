@@ -22,6 +22,16 @@ public class MessageEncoder {
         return buf.array();
     }
 
+    public static byte[] encodeTunnelClose(String reason, String code) {
+        byte[] payload = String.format("{\"reason\":\"%s\",\"code\":\"%s\"}", reason, code)
+                .getBytes(StandardCharsets.UTF_8);
+        ByteBuffer buf = ByteBuffer.allocate(4 + 1 + payload.length);
+        buf.putInt(1 + payload.length);
+        buf.put(MessageType.TUNNEL_CLOSE.getValue());
+        buf.put(payload);
+        return buf.array();
+    }
+
     public static List<byte[]> encodeRequest(HttpRequestMessage message) {
         byte[] body = message.body() != null ? message.body() : new byte[0];
         if (body.length < CHUNK_THRESHOLD) {
@@ -62,7 +72,7 @@ public class MessageEncoder {
         byte[] pathBytes   = message.path().getBytes(StandardCharsets.UTF_8);
         byte[] headerBytes = encodeHeaders(message.headers());
 
-        // START: metadata only, no body
+        // START: metadata only
         int startPayload = 32 + 1 + methodBytes.length + 2 + pathBytes.length + headerBytes.length;
         ByteBuffer start = ByteBuffer.allocate(4 + 1 + startPayload);
         start.putInt(1 + startPayload);
@@ -75,7 +85,7 @@ public class MessageEncoder {
         start.put(headerBytes);
         frames.add(start.array());
 
-        // CHUNKs
+        // CHUNKS
         int offset = 0;
         while (offset < body.length) {
             int len = Math.min(CHUNK_SIZE, body.length - offset);
