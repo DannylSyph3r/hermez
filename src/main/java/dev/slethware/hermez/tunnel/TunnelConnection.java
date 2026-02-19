@@ -48,7 +48,7 @@ public class TunnelConnection {
 
     public Mono<HttpResponseMessage> sendRequest(HttpRequestMessage request) {
         // Return a Mono that completes when the CLI sends back the corresponding response.
-        return Mono.<HttpResponseMessage>create(sink -> {
+        return Mono.create(sink -> {
             pendingRequests.put(request.requestId(), sink);
             MessageEncoder.encodeRequest(request).forEach(frame -> {
                 Sinks.EmitResult result = outboundSink.tryEmitNext(frame);

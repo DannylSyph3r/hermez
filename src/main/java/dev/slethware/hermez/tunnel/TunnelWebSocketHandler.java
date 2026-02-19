@@ -100,14 +100,14 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
                         .map(bytes -> session.binaryMessage(factory -> factory.wrap(bytes)))
         );
 
-        return Mono.zip(receive, send).then();
+        return Mono.when(receive, send);
     }
 
     private Mono<UUID> validateSubdomain(WebSocketSession session, String subdomain, UUID userId) {
         return subdomainValidator.validate(subdomain, userId)
                 .flatMap(result -> switch (result) {
                     case ValidationResult.Valid ignored           -> Mono.just(userId);
-                    case ValidationResult.Reserved(String s, UUID ownerId) -> {
+                    case ValidationResult.Reserved(String ignored, UUID ownerId) -> {
                         if (ownerId.equals(userId)) {
                             // User is connecting to their own reserved subdomain — allowed
                             yield Mono.just(userId);
@@ -116,7 +116,7 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
                         yield session.close(CloseStatus.POLICY_VIOLATION.withReason("Subdomain reserved by another user"))
                                 .then(Mono.empty());
                     }
-                    case ValidationResult.InUse(String s, UUID ownerId) -> {
+                    case ValidationResult.InUse(String ignored, UUID ownerId) -> {
                         if (ownerId.equals(userId)) {
                             // Same user reconnecting — takeover allowed
                             yield Mono.just(userId);
@@ -125,7 +125,7 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
                         yield session.close(CloseStatus.POLICY_VIOLATION.withReason("Subdomain in use"))
                                 .then(Mono.empty());
                     }
-                    case ValidationResult.InvalidFormat(String s, String reason) -> {
+                    case ValidationResult.InvalidFormat(String ignored, String reason) -> {
                         log.warn("Invalid subdomain format: {} reason={}", subdomain, reason);
                         yield session.close(CloseStatus.POLICY_VIOLATION.withReason("Invalid subdomain"))
                                 .then(Mono.empty());
@@ -140,6 +140,7 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
 
     private TunnelInfo buildTunnelInfo(UUID userId, String subdomain, int localPort) {
         return new TunnelInfo(
+                UUID.randomUUID(),
                 configProperties.getServer().getId(),
                 configProperties.getServer().getAddress(),
                 userId,

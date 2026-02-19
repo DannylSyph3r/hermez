@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -66,8 +67,13 @@ public class TunnelRegistryImpl implements TunnelRegistry {
                 .then();
     }
 
-    // Private Methods
+    @Override
+    public Flux<TunnelConnection> listByUser(UUID userId) {
+        return Flux.fromIterable(localTunnels.values())
+                .filter(conn -> userId.equals(conn.getTunnelInfo().userId()));
+    }
 
+    // Privates
     private void registerLocal(String subdomain, TunnelConnection connection) {
         localTunnels.put(subdomain, connection);
         log.info("Tunnel registered locally: {}", subdomain);
@@ -131,7 +137,7 @@ public class TunnelRegistryImpl implements TunnelRegistry {
                     String   tunnelServer = tunnelNode.get("server_id").asText();
                     String   serverAddr   = tunnelNode.get("server_address").asText();
 
-                    // Redis says it's on this server but we don't have it locally — stale entry
+                    // Handle REDIS stale entry
                     if (tunnelServer.equals(configProperties.getServer().getId())) {
                         log.warn("Stale Redis registration for subdomain: {} — no local connection found", subdomain);
                         yield Mono.just((TunnelLookupResult) new TunnelLookupResult.NotFound());
