@@ -33,6 +33,7 @@ public class TunnelConnection {
     private final ConcurrentHashMap<UUID, MonoSink<HttpResponseMessage>> pendingRequests;
     private final ConcurrentHashMap<UUID, ChunkedResponseAccumulator> pendingChunks;
     private final AtomicLong lastPongTime;
+    private final AtomicLong requestCount;
 
     public TunnelConnection(WebSocketSession session, TunnelInfo tunnelInfo) {
         this.session        = session;
@@ -42,6 +43,7 @@ public class TunnelConnection {
         this.pendingRequests = new ConcurrentHashMap<>();
         this.pendingChunks   = new ConcurrentHashMap<>();
         this.lastPongTime    = new AtomicLong(System.currentTimeMillis());
+        this.requestCount = new AtomicLong(0);
     }
 
     public Mono<HttpResponseMessage> sendRequest(HttpRequestMessage request) {
@@ -100,9 +102,18 @@ public class TunnelConnection {
         }
     }
 
+    public void sendTunnelClose(String reason, String code) {
+        Sinks.EmitResult result = outboundSink.tryEmitNext(MessageEncoder.encodeTunnelClose(reason, code));
+        if (result.isFailure()) {
+            log.warn("Failed to emit TUNNEL_CLOSE for tunnel: {}", subdomain);
+        }
+    }
+
     public long getLastPongTime() {
         return lastPongTime.get();
     }
+
+    public long getRequestCount() {return requestCount.get();}
 
     public Flux<byte[]> outbound() {
         return outboundSink.asFlux();
@@ -123,6 +134,7 @@ public class TunnelConnection {
     }
 
     private void completeRequest(HttpResponseMessage response) {
+        requestCount.incrementAndGet();
         MonoSink<HttpResponseMessage> sink = pendingRequests.remove(response.requestId());
         if (sink == null) {
             // Already timed out — onDispose cleaned the map, discard silently
