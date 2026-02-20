@@ -1,5 +1,7 @@
 package dev.slethware.hermez.auth;
 
+import dev.slethware.hermez.apikey.ApiKeyPrincipal;
+import dev.slethware.hermez.apikey.ApiKeyService;
 import dev.slethware.hermez.auth.config.AuthProperties;
 import dev.slethware.hermez.user.User;
 import io.jsonwebtoken.Claims;
@@ -29,6 +31,7 @@ public class TokenServiceImpl implements TokenService {
     private final SecretKey jwtSecretKey;
     private final AuthProperties authProperties;
     private final ReactiveRedisTemplate<String, String> redisTemplate;
+    private final ApiKeyService apiKeyService;
 
     private static final String REFRESH_TOKEN_PREFIX = "refresh_token:user:";
     private static final String TOKEN_TYPE_ACCESS = "access";
@@ -63,6 +66,10 @@ public class TokenServiceImpl implements TokenService {
 
     @Override
     public Mono<UUID> validateAccessToken(String token) {
+        if (token.startsWith("hk_")) {
+            return apiKeyService.validateApiKey(token)
+                    .map(ApiKeyPrincipal::userId);
+        }
         return Mono.fromCallable(() -> {
             Claims claims = Jwts.parser()
                     .verifyWith(jwtSecretKey)
@@ -74,12 +81,20 @@ public class TokenServiceImpl implements TokenService {
             if (!TOKEN_TYPE_ACCESS.equals(type)) {
                 throw new JwtException("Invalid token type");
             }
-
             return UUID.fromString(claims.getSubject());
         }).onErrorResume(e -> {
             log.debug("Token validation failed: {}", e.getMessage());
             return Mono.empty();
         });
+    }
+
+    @Override
+    public Mono<String> resolveTier(String token) {
+        if (token.startsWith("hk_")) {
+            return apiKeyService.validateApiKey(token)
+                    .map(ApiKeyPrincipal::tier);
+        }
+        return Mono.justOrEmpty(extractTier(token));
     }
 
     @Override
