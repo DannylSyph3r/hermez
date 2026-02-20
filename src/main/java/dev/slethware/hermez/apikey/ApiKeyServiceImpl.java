@@ -39,15 +39,22 @@ public class ApiKeyServiceImpl implements ApiKeyService {
 
     @Override
     public Mono<CreateApiKeyResponse> generateApiKey(UUID userId, String name) {
-        return apiKeyRepository.countByUserIdAndRevokedAtIsNull(userId)
+        return apiKeyRepository.existsByUserIdAndNameAndRevokedAtIsNull(userId, name)
+                .flatMap(nameExists -> {
+                    if (nameExists) {
+                        return Mono.error(new ConflictException(
+                                "A key with the tag'" + name + "' already exists."));
+                    }
+                    return apiKeyRepository.countByUserIdAndRevokedAtIsNull(userId);
+                })
                 .flatMap(count -> {
                     if (count >= MAX_KEYS_PER_USER) {
                         return Mono.error(new ForbiddenException(
                                 "API key limit reached. Maximum " + MAX_KEYS_PER_USER + " active keys allowed."));
                     }
 
-                    String rawKey    = generateRawKey();
-                    String keyHash   = hashKey(rawKey);
+                    String rawKey     = generateRawKey();
+                    String keyHash    = hashKey(rawKey);
                     String keyPreview = buildPreview(rawKey);
 
                     ApiKey apiKey = ApiKey.builder()
