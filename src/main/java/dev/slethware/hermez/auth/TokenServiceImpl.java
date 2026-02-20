@@ -92,7 +92,7 @@ public class TokenServiceImpl implements TokenService {
     public Mono<String> resolveTier(String token) {
         if (token.startsWith("hk_")) {
             return apiKeyService.validateApiKey(token)
-                    .map(ApiKeyPgrincipal::tier);
+                    .map(ApiKeyPrincipal::tier);
         }
         return Mono.justOrEmpty(extractTier(token));
     }

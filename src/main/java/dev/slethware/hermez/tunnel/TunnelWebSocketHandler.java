@@ -6,6 +6,7 @@ import dev.slethware.hermez.subdomain.validation.SubdomainValidator;
 import dev.slethware.hermez.subdomain.validation.ValidationResult;
 import dev.slethware.hermez.tunnel.protocol.MessageDecoder;
 import dev.slethware.hermez.tunnel.protocol.ProtocolMessage;
+import dev.slethware.hermez.user.SubscriptionTier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -41,7 +42,6 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
         String subdomainHeader = headers.getFirst(HEADER_SUBDOMAIN);
         String localPortHeader = headers.getFirst(HEADER_LOCAL_PORT);
 
-        // Validate required headers are present
         if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
             log.warn("WebSocket connection rejected: missing or malformed Authorization header. sessionId={}", session.getId());
             return session.close(CloseStatus.POLICY_VIOLATION.withReason("Missing authorization"));
@@ -51,8 +51,8 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
             return session.close(CloseStatus.POLICY_VIOLATION.withReason("Missing subdomain header"));
         }
 
-        int localPort = parseLocalPort(localPortHeader);
-        String token  = authHeader.substring(BEARER_PREFIX.length());
+        int localPort    = parseLocalPort(localPortHeader);
+        String token     = authHeader.substring(BEARER_PREFIX.length());
         String subdomain = subdomainHeader.toLowerCase().trim();
 
         return tokenService.validateAccessToken(token)
@@ -61,6 +61,10 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
                     return session.close(CloseStatus.POLICY_VIOLATION.withReason("Invalid or expired token"))
                             .then(Mono.empty());
                 }))
+                .flatMap(userId -> tokenService.resolveTier(token)
+                        .defaultIfEmpty("chelys")
+                        .flatMap(tier -> checkTunnelLimit(session, userId, tier))
+                )
                 .flatMap(userId -> validateSubdomain(session, subdomain, userId)
                         .flatMap(valid -> {
                             TunnelInfo info = buildTunnelInfo(userId, subdomain, localPort);
@@ -135,6 +139,26 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
                         yield session.close(CloseStatus.POLICY_VIOLATION.withReason("Subdomain not allowed"))
                                 .then(Mono.empty());
                     }
+                });
+    }
+
+    private Mono<UUID> checkTunnelLimit(WebSocketSession session, UUID userId, String tier) {
+        SubscriptionTier subscriptionTier = SubscriptionTier.fromValue(tier);
+
+        if (subscriptionTier.isUnlimitedTunnels()) {
+            return Mono.just(userId);
+        }
+
+        return tunnelRegistry.listByUser(userId)
+                .count()
+                .flatMap(count -> {
+                    if (count >= subscriptionTier.getMaxTunnels()) {
+                        log.warn("Tunnel limit reached: userId={} tier={} active={} max={}",
+                                userId, tier, count, subscriptionTier.getMaxTunnels());
+                        return session.close(CloseStatus.POLICY_VIOLATION.withReason("Tunnel limit reached"))
+                                .then(Mono.<UUID>empty());
+                    }
+                    return Mono.just(userId);
                 });
     }
 
