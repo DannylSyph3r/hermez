@@ -1,7 +1,6 @@
 package dev.slethware.hermez.apikey;
 
 import dev.slethware.hermez.apikey.api.ApiKeyListResponse;
-import dev.slethware.hermez.apikey.api.ApiKeyValidationResponse;
 import dev.slethware.hermez.apikey.api.CreateApiKeyResponse;
 import reactor.core.publisher.Mono;
 

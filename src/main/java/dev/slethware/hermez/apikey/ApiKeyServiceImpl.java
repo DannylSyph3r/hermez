@@ -2,7 +2,6 @@ package dev.slethware.hermez.apikey;
 
 import dev.slethware.hermez.apikey.api.ApiKeyListResponse;
 import dev.slethware.hermez.apikey.api.ApiKeyResponse;
-import dev.slethware.hermez.apikey.api.ApiKeyValidationResponse;
 import dev.slethware.hermez.apikey.api.CreateApiKeyResponse;
 import dev.slethware.hermez.exception.ConflictException;
 import dev.slethware.hermez.exception.ForbiddenException;
