@@ -13,4 +13,5 @@ public interface TokenService {
     Mono<UUID> validateRefreshToken(String refreshToken);
     Mono<Void> invalidateRefreshToken(UUID userId);
     String extractTier(String token);
+    Mono<String> resolveTier(String token);
 }
