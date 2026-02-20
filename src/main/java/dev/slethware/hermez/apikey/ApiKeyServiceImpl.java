@@ -43,7 +43,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
                 .flatMap(nameExists -> {
                     if (nameExists) {
                         return Mono.error(new ConflictException(
-                                "A key with the tag'" + name + "' already exists."));
+                                "A key with the tag '" + name + "' already exists."));
                     }
                     return apiKeyRepository.countByUserIdAndRevokedAtIsNull(userId);
                 })
