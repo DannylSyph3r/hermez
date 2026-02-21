@@ -3,6 +3,7 @@ package dev.slethware.hermez.apikey.api;
 import dev.slethware.hermez.apikey.ApiKeyService;
 import dev.slethware.hermez.common.models.response.ApiResponse;
 import dev.slethware.hermez.common.util.ApiResponseUtil;
+import dev.slethware.hermez.user.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,6 +23,7 @@ import java.util.UUID;
 public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
+    private final UserRepository userRepository;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -65,9 +67,10 @@ public class ApiKeyController {
                 .findFirst()
                 .orElse("chelys");
 
-        return Mono.just(ApiResponseUtil.successFull(
-                "API key is valid",
-                new ApiKeyValidationResponse(userId, tier, true)
-        ));
+        return userRepository.findById(userId)
+                .map(user -> ApiResponseUtil.successFull(
+                        "API key is valid",
+                        new ApiKeyValidationResponse(userId, user.getEmail(), tier, true)
+                ));
     }
 }
