@@ -19,6 +19,7 @@ public class HermezConfigProperties {
 
     @Data
     public static class ServerConfig {
+        // Used for multi-server routing in Redis. Redundant for single-server MVP.
         private String id = "server-1";
         private String address = "localhost:8080";
     }
