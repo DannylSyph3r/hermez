@@ -32,6 +32,27 @@ public class MessageEncoder {
         return buf.array();
     }
 
+    public static byte[] encodeTunnelConnected(String tunnelId, String subdomain, String publicUrl) {
+        byte[] idBytes  = tunnelId.getBytes(StandardCharsets.UTF_8);
+        byte[] subBytes = subdomain.getBytes(StandardCharsets.UTF_8);
+        byte[] urlBytes = publicUrl.getBytes(StandardCharsets.UTF_8);
+
+        int payloadSize = 2 + idBytes.length
+                + 2 + subBytes.length
+                + 2 + urlBytes.length;
+
+        ByteBuffer buf = ByteBuffer.allocate(4 + 1 + payloadSize);
+        buf.putInt(1 + payloadSize);
+        buf.put(MessageType.TUNNEL_CONNECTED.getValue());
+        buf.putShort((short) idBytes.length);
+        buf.put(idBytes);
+        buf.putShort((short) subBytes.length);
+        buf.put(subBytes);
+        buf.putShort((short) urlBytes.length);
+        buf.put(urlBytes);
+        return buf.array();
+    }
+
     public static List<byte[]> encodeRequest(HttpRequestMessage message) {
         byte[] body = message.body() != null ? message.body() : new byte[0];
         if (body.length < CHUNK_THRESHOLD) {

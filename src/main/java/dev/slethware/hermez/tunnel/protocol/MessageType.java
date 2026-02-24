@@ -4,6 +4,7 @@ public enum MessageType {
 
     PING(0x01),
     PONG(0x02),
+    TUNNEL_CONNECTED(0x03),
     HTTP_REQUEST(0x10),
     HTTP_RESPONSE(0x11),
     HTTP_REQUEST_START(0x12),
