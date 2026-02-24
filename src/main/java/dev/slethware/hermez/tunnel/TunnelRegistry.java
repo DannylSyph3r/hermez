@@ -12,4 +12,5 @@ public interface TunnelRegistry {
     Mono<TunnelLookupResult> lookup(String subdomain);
     Mono<Void> refreshTtl(String subdomain);
     Flux<TunnelConnection> listByUser(UUID userId);
+    Mono<String> checkGrace(UUID userId, int localPort);
 }

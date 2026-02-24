@@ -28,6 +28,9 @@ public class TunnelConnection {
     @Getter
     private final TunnelInfo tunnelInfo;
 
+    @Getter
+    private final boolean random;
+
     private final WebSocketSession session;
     private final Sinks.Many<byte[]> outboundSink;
     private final ConcurrentHashMap<UUID, MonoSink<HttpResponseMessage>> pendingRequests;
@@ -35,15 +38,16 @@ public class TunnelConnection {
     private final AtomicLong lastPongTime;
     private final AtomicLong requestCount;
 
-    public TunnelConnection(WebSocketSession session, TunnelInfo tunnelInfo) {
-        this.session        = session;
-        this.tunnelInfo     = tunnelInfo;
-        this.subdomain      = tunnelInfo.subdomain();
-        this.outboundSink   = Sinks.many().unicast().onBackpressureBuffer();
+    public TunnelConnection(WebSocketSession session, TunnelInfo tunnelInfo, boolean random) {
+        this.session         = session;
+        this.tunnelInfo      = tunnelInfo;
+        this.subdomain       = tunnelInfo.subdomain();
+        this.random          = random;
+        this.outboundSink    = Sinks.many().unicast().onBackpressureBuffer();
         this.pendingRequests = new ConcurrentHashMap<>();
         this.pendingChunks   = new ConcurrentHashMap<>();
         this.lastPongTime    = new AtomicLong(System.currentTimeMillis());
-        this.requestCount = new AtomicLong(0);
+        this.requestCount    = new AtomicLong(0);
     }
 
     public Mono<HttpResponseMessage> sendRequest(HttpRequestMessage request) {
@@ -106,6 +110,19 @@ public class TunnelConnection {
         Sinks.EmitResult result = outboundSink.tryEmitNext(MessageEncoder.encodeTunnelClose(reason, code));
         if (result.isFailure()) {
             log.warn("Failed to emit TUNNEL_CLOSE for tunnel: {}", subdomain);
+        }
+    }
+
+    public void sendTunnelConnected(String publicUrl) {
+        Sinks.EmitResult result = outboundSink.tryEmitNext(
+                MessageEncoder.encodeTunnelConnected(
+                        tunnelInfo.tunnelId().toString(),
+                        tunnelInfo.subdomain(),
+                        publicUrl
+                )
+        );
+        if (result.isFailure()) {
+            log.warn("Failed to emit TUNNEL_CONNECTED for tunnel: {}", subdomain);
         }
     }
 

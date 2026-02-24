@@ -41,10 +41,20 @@ public class TunnelRegistryImpl implements TunnelRegistry {
 
     @Override
     public Mono<Void> unregister(String subdomain) {
+        // Capture before removal so we can inspect the tunnel info
+        TunnelConnection connection = localTunnels.get(subdomain);
         unregisterLocal(subdomain);
-        return redisTemplate.delete(TUNNEL_KEY_PREFIX + subdomain)
+
+        Mono<Void> deleteFromRedis = redisTemplate.delete(TUNNEL_KEY_PREFIX + subdomain)
                 .doOnSuccess(count -> log.info("Unregistered tunnel from Redis: {} (deleted={})", subdomain, count))
                 .then();
+
+        if (connection != null && connection.isRandom()) {
+            TunnelInfo info = connection.getTunnelInfo();
+            return Mono.when(deleteFromRedis, writeGraceKeys(info.subdomain(), info.userId(), info.localPort()));
+        }
+
+        return deleteFromRedis;
     }
 
     @Override
@@ -65,6 +75,12 @@ public class TunnelRegistryImpl implements TunnelRegistry {
                     }
                 })
                 .then();
+    }
+
+    @Override
+    public Mono<String> checkGrace(UUID userId, int localPort) {
+        String key = "grace:user:" + userId + ":" + localPort;
+        return redisTemplate.opsForValue().get(key);
     }
 
     @Override
@@ -155,5 +171,16 @@ public class TunnelRegistryImpl implements TunnelRegistry {
         } catch (Exception e) {
             return Mono.error(new IllegalStateException("Failed to parse tunnel_route.lua result", e));
         }
+    }
+
+    private Mono<Void> writeGraceKeys(String subdomain, UUID userId, int localPort) {
+        Duration ttl      = Duration.ofMinutes(5);
+        String   userKey  = "grace:user:" + userId + ":" + localPort;
+        String   subKey   = "grace:" + subdomain;
+
+        return Mono.when(
+                redisTemplate.opsForValue().set(userKey, subdomain, ttl),
+                redisTemplate.opsForValue().set(subKey, userId + ":" + localPort, ttl)
+        ).then();
     }
 }

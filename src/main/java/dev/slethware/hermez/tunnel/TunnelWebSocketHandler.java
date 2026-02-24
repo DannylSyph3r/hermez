@@ -2,6 +2,7 @@ package dev.slethware.hermez.tunnel;
 
 import dev.slethware.hermez.auth.TokenService;
 import dev.slethware.hermez.config.HermezConfigProperties;
+import dev.slethware.hermez.subdomain.SubdomainGenerator;
 import dev.slethware.hermez.subdomain.validation.SubdomainValidator;
 import dev.slethware.hermez.subdomain.validation.ValidationResult;
 import dev.slethware.hermez.tunnel.protocol.MessageDecoder;
@@ -31,6 +32,7 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
 
     private final TokenService tokenService;
     private final SubdomainValidator subdomainValidator;
+    private final SubdomainGenerator subdomainGenerator;
     private final TunnelRegistry tunnelRegistry;
     private final HeartbeatManager heartbeatManager;
     private final HermezConfigProperties configProperties;
@@ -46,14 +48,13 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
             log.warn("WebSocket connection rejected: missing or malformed Authorization header. sessionId={}", session.getId());
             return session.close(CloseStatus.POLICY_VIOLATION.withReason("Missing authorization"));
         }
-        if (subdomainHeader == null || subdomainHeader.isBlank()) {
-            log.warn("WebSocket connection rejected: missing X-Hermez-Subdomain header. sessionId={}", session.getId());
-            return session.close(CloseStatus.POLICY_VIOLATION.withReason("Missing subdomain header"));
-        }
 
-        int localPort    = parseLocalPort(localPortHeader);
-        String token     = authHeader.substring(BEARER_PREFIX.length());
-        String subdomain = subdomainHeader.toLowerCase().trim();
+        int    localPort          = parseLocalPort(localPortHeader);
+        String token              = authHeader.substring(BEARER_PREFIX.length());
+        // null means no subdomain requested — server will assign one randomly
+        String requestedSubdomain = (subdomainHeader != null && !subdomainHeader.isBlank())
+                ? subdomainHeader.toLowerCase().trim()
+                : null;
 
         return tokenService.validateAccessToken(token)
                 .switchIfEmpty(Mono.defer(() -> {
@@ -65,18 +66,20 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
                         .defaultIfEmpty("chelys")
                         .flatMap(tier -> checkTunnelLimit(session, userId, tier))
                 )
-                .flatMap(userId -> validateSubdomain(session, subdomain, userId)
-                        .flatMap(valid -> {
-                            TunnelInfo info = buildTunnelInfo(userId, subdomain, localPort);
-                            TunnelConnection connection = new TunnelConnection(session, info);
+                .flatMap(userId -> resolveSubdomain(session, userId, requestedSubdomain, localPort)
+                        .flatMap(resolution -> {
+                            TunnelInfo info = buildTunnelInfo(userId, resolution.subdomain(), localPort);
+                            TunnelConnection connection = new TunnelConnection(session, info, resolution.random());
 
-                            return tunnelRegistry.register(subdomain, connection, info, userId)
+                            return tunnelRegistry.register(resolution.subdomain(), connection, info, userId)
                                     .doOnSuccess(v -> {
-                                        heartbeatManager.start(subdomain, connection, tunnelRegistry);
-                                        log.info("Tunnel established: subdomain={} userId={} localPort={}", subdomain, userId, localPort);
+                                        connection.sendTunnelConnected(buildPublicUrl(resolution.subdomain()));
+                                        heartbeatManager.start(resolution.subdomain(), connection, tunnelRegistry);
+                                        log.info("Tunnel established: subdomain={} userId={} localPort={} random={}",
+                                                resolution.subdomain(), userId, localPort, resolution.random());
                                     })
                                     .then(runSession(session, connection))
-                                    .doFinally(signal -> cleanup(subdomain, connection, signal.toString()));
+                                    .doFinally(signal -> cleanup(resolution.subdomain(), connection, signal.toString()));
                         })
                 );
     }
@@ -105,6 +108,56 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
         );
 
         return Mono.when(receive, send);
+    }
+
+    private record SubdomainResolution(String subdomain, boolean random) {}
+
+    private Mono<SubdomainResolution> resolveSubdomain(
+            WebSocketSession session, UUID userId, String requestedSubdomain, int localPort) {
+
+        if (requestedSubdomain != null) {
+            // User explicitly requested a subdomain — validate ownership and availability
+            return validateSubdomain(session, requestedSubdomain, userId)
+                    .map(ignored -> new SubdomainResolution(requestedSubdomain, false));
+        }
+
+        // No subdomain provided — check grace period first, then generate fresh
+        return tunnelRegistry.checkGrace(userId, localPort)
+                .flatMap(gracedSubdomain ->
+                        tunnelRegistry.lookup(gracedSubdomain)
+                                .flatMap(result -> {
+                                    boolean available = result instanceof TunnelLookupResult.NotFound
+                                            || result instanceof TunnelLookupResult.ServerDead;
+                                    if (available) {
+                                        log.info("Reclaiming grace subdomain: {} userId={}", gracedSubdomain, userId);
+                                        return Mono.just(new SubdomainResolution(gracedSubdomain, true));
+                                    }
+                                    return tryGenerate(0);
+                                })
+                )
+                .switchIfEmpty(Mono.defer(() -> tryGenerate(0)));
+    }
+
+    private Mono<SubdomainResolution> tryGenerate(int attempt) {
+        if (attempt >= 10) {
+            return Mono.error(new IllegalStateException(
+                    "Could not generate a unique subdomain after 10 attempts"));
+        }
+        String candidate = subdomainGenerator.generate();
+        return tunnelRegistry.lookup(candidate)
+                .flatMap(result -> {
+                    boolean taken = result instanceof TunnelLookupResult.Local
+                            || result instanceof TunnelLookupResult.Remote;
+                    if (taken) {
+                        return tryGenerate(attempt + 1);
+                    }
+                    return Mono.just(new SubdomainResolution(candidate, true));
+                });
+    }
+
+    private String buildPublicUrl(String subdomain) {
+        return String.format("https://%s.%s",
+                subdomain, configProperties.getSubdomain().getBaseDomain());
     }
 
     private Mono<UUID> validateSubdomain(WebSocketSession session, String subdomain, UUID userId) {
