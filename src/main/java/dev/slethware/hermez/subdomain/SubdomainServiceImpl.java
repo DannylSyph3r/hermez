@@ -129,8 +129,10 @@ public class SubdomainServiceImpl implements SubdomainService {
 
         return validator.validate(subdomain, userId)
                 .map(result -> switch (result) {
-                    case ValidationResult.Valid ignored ->
+                    case ValidationResult.NotReserved ignored ->
                             new AvailabilityResponse(subdomain, true, "available");
+                    case ValidationResult.Valid ignored ->
+                            throw new IllegalStateException("Unexpected Valid result");
                     case ValidationResult.InvalidFormat(String ignored, var reason) ->
                             new AvailabilityResponse(subdomain, false, reason);
                     case ValidationResult.Blocked ignored ->
@@ -172,7 +174,9 @@ public class SubdomainServiceImpl implements SubdomainService {
 
     private Mono<SubdomainResponse> handleValidationResult(ValidationResult result, String subdomain, UUID userId) {
         return switch (result) {
-            case ValidationResult.Valid ignored -> createReservation(subdomain, userId);
+            case ValidationResult.NotReserved ignored -> createReservation(subdomain, userId);
+            case ValidationResult.Valid ignored ->
+                    throw new IllegalStateException("Unexpected Valid result in handleValidationResult — this is a bug");
             case ValidationResult.InvalidFormat(String ignored, var reason) ->
                     Mono.error(new BadRequestException(reason));
             case ValidationResult.Blocked ignored ->
@@ -181,7 +185,6 @@ public class SubdomainServiceImpl implements SubdomainService {
                     Mono.error(new ConflictException("Subdomain is currently in use"));
             case ValidationResult.Reserved(String ignored, var ownerId) -> {
                 if (ownerId.equals(userId)) {
-                    // User already owns this reservation
                     yield reservationRepository.findBySubdomain(subdomain)
                             .flatMap(reservation -> checkIfActive(reservation)
                                     .map(activeInfo -> SubdomainResponse.from(

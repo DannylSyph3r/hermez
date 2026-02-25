@@ -163,10 +163,15 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
     private Mono<UUID> validateSubdomain(WebSocketSession session, String subdomain, UUID userId) {
         return subdomainValidator.validate(subdomain, userId)
                 .flatMap(result -> switch (result) {
-                    case ValidationResult.Valid ignored           -> Mono.just(userId);
+                    case ValidationResult.Valid ignored ->
+                            throw new IllegalStateException("Unexpected Valid result");
+                    case ValidationResult.NotReserved ignored -> {
+                        log.warn("Subdomain {} is not reserved, rejecting sessionId={}", subdomain, session.getId());
+                        yield session.close(CloseStatus.POLICY_VIOLATION.withReason("Subdomain not reserved"))
+                                .then(Mono.empty());
+                    }
                     case ValidationResult.Reserved(String ignored, UUID ownerId) -> {
                         if (ownerId.equals(userId)) {
-                            // User is connecting to their own reserved subdomain — allowed
                             yield Mono.just(userId);
                         }
                         log.warn("Subdomain {} is reserved by another user, rejecting sessionId={}", subdomain, session.getId());
@@ -175,7 +180,6 @@ public class TunnelWebSocketHandler implements WebSocketHandler {
                     }
                     case ValidationResult.InUse(String ignored, UUID ownerId) -> {
                         if (ownerId.equals(userId)) {
-                            // Same user reconnecting — takeover allowed
                             yield Mono.just(userId);
                         }
                         log.warn("Subdomain {} is in use by another user, rejecting sessionId={}", subdomain, session.getId());

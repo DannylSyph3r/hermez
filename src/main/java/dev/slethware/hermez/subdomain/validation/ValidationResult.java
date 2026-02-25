@@ -5,6 +5,7 @@ import java.util.UUID;
 public sealed interface ValidationResult {
 
     record Valid(String subdomain) implements ValidationResult {}
+    record NotReserved(String subdomain) implements ValidationResult {}
     record InvalidFormat(String subdomain, String reason) implements ValidationResult {}
     record Blocked(String subdomain) implements ValidationResult {}
     record InUse(String subdomain, UUID ownerId) implements ValidationResult {}

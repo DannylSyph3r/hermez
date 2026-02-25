@@ -103,6 +103,6 @@ public class SubdomainValidator {
                         subdomain,
                         reservation.getUserId()
                 ))
-                .defaultIfEmpty(new ValidationResult.Valid(subdomain));
+                .defaultIfEmpty(new ValidationResult.NotReserved(subdomain));
     }
 }
