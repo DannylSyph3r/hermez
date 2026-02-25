@@ -52,7 +52,7 @@ public class TunnelServiceImpl implements TunnelService {
                 .flatMap(conn -> {
                     log.info("Force closing tunnel: tunnelId={} subdomain={} userId={}",
                             tunnelId, conn.getSubdomain(), requestingUserId);
-                    conn.sendTunnelClose("force_closed", "admin_action");
+                    conn.sendTunnelClose("Tunnel closed from the dashboard", "dashboard_close");
                     return conn.close();
                 });
     }
