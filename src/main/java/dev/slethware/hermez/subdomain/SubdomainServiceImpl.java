@@ -155,7 +155,7 @@ public class SubdomainServiceImpl implements SubdomainService {
     private Mono<Void> checkReservationLimit(User user) {
         SubscriptionTier tier = SubscriptionTier.fromValue(user.getTier());
 
-        if (tier.isUnlimited()) {
+        if (tier.isUnlimitedSubdomains()) {
             return Mono.empty();
         }
 

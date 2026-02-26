@@ -12,10 +12,11 @@ import java.util.List;
 @ConfigurationProperties(prefix = "hermez")
 public class HermezConfigProperties {
 
-    private ServerConfig server = new ServerConfig();
-    private TunnelConfig tunnel = new TunnelConfig();
-    private RateLimitConfig rateLimit = new RateLimitConfig();
-    private SubdomainConfig subdomain = new SubdomainConfig();
+    private ServerConfig     server     = new ServerConfig();
+    private TunnelConfig     tunnel     = new TunnelConfig();
+    private RateLimitConfig  rateLimit  = new RateLimitConfig();
+    private SubdomainConfig  subdomain  = new SubdomainConfig();
+    private InspectionConfig inspection = new InspectionConfig();
 
     @Data
     public static class ServerConfig {
@@ -27,9 +28,9 @@ public class HermezConfigProperties {
     @Data
     public static class TunnelConfig {
         private Duration heartbeatInterval = Duration.ofSeconds(5);
-        private Duration heartbeatTimeout = Duration.ofSeconds(3);
-        private Duration requestTimeout = Duration.ofSeconds(60);
-        private int maxTunnelsPerUser = 5;
+        private Duration heartbeatTimeout  = Duration.ofSeconds(3);
+        private Duration requestTimeout    = Duration.ofSeconds(60);
+        private int      maxTunnelsPerUser = 5;
     }
 
     @Data
@@ -40,13 +41,18 @@ public class HermezConfigProperties {
 
     @Data
     public static class SubdomainConfig {
-        private int minLength = 3;
-        private int maxLength = 63;
-        private String baseDomain = "hermez.one";
-        private List<String> blocked = List.of(
+        private int          minLength  = 3;
+        private int          maxLength  = 63;
+        private String       baseDomain = "hermez.one";
+        private List<String> blocked    = List.of(
                 "www", "api", "admin", "dashboard", "mail", "ftp",
                 "smtp", "pop", "imap", "ns", "dns", "whois", "ssl",
                 "tls", "http", "https", "ssh", "sftp", "blog"
         );
+    }
+
+    @Data
+    public static class InspectionConfig {
+        private int maxBodySizeBytes = 65536;
     }
 }
