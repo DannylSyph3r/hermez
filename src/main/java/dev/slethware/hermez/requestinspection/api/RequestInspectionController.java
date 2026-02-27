@@ -4,6 +4,7 @@ import dev.slethware.hermez.common.models.response.ApiResponse;
 import dev.slethware.hermez.common.util.ApiResponseUtil;
 import dev.slethware.hermez.common.util.SecurityContextUtil;
 import dev.slethware.hermez.requestinspection.RequestInspectionService;
+import dev.slethware.hermez.requestinspection.ReplayService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class RequestInspectionController {
 
     private final RequestInspectionService requestInspectionService;
+    private final ReplayService replayService;
 
     @GetMapping("/{tunnelId}/requests")
     @Operation(
@@ -46,6 +48,19 @@ public class RequestInspectionController {
         return SecurityContextUtil.getCurrentUserId()
                 .flatMap(userId -> requestInspectionService.getRequest(userId, tunnelId, requestId))
                 .map(log -> ApiResponseUtil.successFull("Request retrieved successfully", RequestLogResponse.from(log)));
+    }
+
+    @PostMapping("/{tunnelId}/requests/{requestId}/replay")
+    @Operation(
+            summary = "Replay a captured request",
+            description = "Replays a stored request through the active tunnel. Requires Petasos or Talaria tier."
+    )
+    public Mono<ApiResponse<RequestLogResponse>> replayRequest(
+            @PathVariable String tunnelId,
+            @PathVariable UUID requestId) {
+        return SecurityContextUtil.getCurrentUserId()
+                .flatMap(userId -> replayService.replay(userId, tunnelId, requestId))
+                .map(result -> ApiResponseUtil.successFull("Request replayed successfully", result));
     }
 
     @DeleteMapping("/{tunnelId}/requests")
