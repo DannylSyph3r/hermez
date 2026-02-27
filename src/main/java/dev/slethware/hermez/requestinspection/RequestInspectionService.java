@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 import java.time.Instant;
 import java.util.Arrays;
@@ -84,13 +83,6 @@ public class RequestInspectionService {
                             .build();
 
                     return requestLogRepository.save(entry)
-                            .doOnSuccess(saved -> enforceRollingCap(userId)
-                                    .onErrorResume(err -> {
-                                        log.warn("Rolling cap enforcement failed userId={}: {}", userId, err.getMessage());
-                                        return Mono.empty();
-                                    })
-                                    .subscribeOn(Schedulers.boundedElastic())
-                                    .subscribe())
                             .map(RequestLog::getId);
                 });
     }
@@ -159,21 +151,5 @@ public class RequestInspectionService {
 
     public Mono<Void> clearLogs(UUID userId, String tunnelId) {
         return requestLogRepository.deleteByTunnelIdAndUserId(tunnelId, userId);
-    }
-
-    public Mono<Void> enforceRollingCap(UUID userId) {
-        return userRepository.findById(userId)
-                .map(user -> SubscriptionTier.fromValue(user.getTier()))
-                .flatMap(tier -> {
-                    int cap = tier.getMaxRequestLogs();
-                    if (cap == -1) return Mono.empty();
-
-                    return requestLogRepository.countByUserId(userId)
-                            .flatMap(count -> {
-                                if (count <= cap) return Mono.empty();
-                                int excess = (int) (count - cap);
-                                return requestLogRepository.deleteOldestByUserId(userId, excess);
-                            });
-                });
     }
 }

@@ -20,17 +20,6 @@ public interface RequestLogRepository extends ReactiveCrudRepository<RequestLog,
 
     Mono<RequestLog> findByIdAndTunnelIdAndUserId(UUID id, String tunnelId, UUID userId);
 
-    Mono<Long> countByUserId(UUID userId);
-
-    @Modifying
-    @Query("DELETE FROM request_logs WHERE user_id = :userId AND started_at < :cutoff")
-    Mono<Void> deleteByUserIdAndStartedAtBefore(UUID userId, Instant cutoff);
-
-    @Modifying
-    @Query("DELETE FROM request_logs WHERE user_id = :userId AND id IN " +
-            "(SELECT id FROM request_logs WHERE user_id = :userId ORDER BY started_at ASC LIMIT :limit)")
-    Mono<Void> deleteOldestByUserId(UUID userId, int limit);
-
     @Modifying
     @Query("DELETE FROM request_logs WHERE tunnel_id = :tunnelId AND user_id = :userId")
     Mono<Void> deleteByTunnelIdAndUserId(String tunnelId, UUID userId);
@@ -48,4 +37,22 @@ public interface RequestLogRepository extends ReactiveCrudRepository<RequestLog,
     @Query("UPDATE request_logs SET status = :status, error_message = :errorMessage, " +
             "completed_at = :completedAt WHERE id = :logId")
     Mono<Void> updateFailed(UUID logId, String status, String errorMessage, Instant completedAt);
+
+    // Scheduler — Pass 1: retention cleanup (time-based, per tier)
+    @Modifying
+    @Query("DELETE FROM request_logs " +
+            "WHERE started_at < :cutoff " +
+            "AND user_id IN (SELECT id FROM users WHERE tier = :tier)")
+    Mono<Integer> deleteByTierAndStartedAtBefore(String tier, Instant cutoff);
+
+    // Scheduler — Pass 2: rolling cap enforcement (count-based, per tier)
+    @Modifying
+    @Query("DELETE FROM request_logs WHERE id IN (" +
+            "SELECT id FROM (" +
+            "SELECT id, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY started_at DESC) AS rn " +
+            "FROM request_logs " +
+            "WHERE user_id IN (SELECT id FROM users WHERE tier = :tier)" +
+            ") ranked WHERE rn > :cap" +
+            ")")
+    Mono<Integer> deleteExcessByTier(String tier, int cap);
 }
