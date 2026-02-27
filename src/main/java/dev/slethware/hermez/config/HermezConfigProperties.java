@@ -17,10 +17,11 @@ public class HermezConfigProperties {
     private RateLimitConfig  rateLimit  = new RateLimitConfig();
     private SubdomainConfig  subdomain  = new SubdomainConfig();
     private InspectionConfig inspection = new InspectionConfig();
+    private DomainConfig     domain     = new DomainConfig();
 
     @Data
     public static class ServerConfig {
-        // Used for multi-server routing in Redis. Redundant for single-server MVP.
+        // Multi-server routing in Redis. Redundant for single-server MVP.
         private String id = "server-1";
         private String address = "localhost:8080";
     }
@@ -54,5 +55,10 @@ public class HermezConfigProperties {
     @Data
     public static class InspectionConfig {
         private int maxBodySizeBytes = 65536;
+    }
+
+    @Data
+    public static class DomainConfig {
+        private String ingressDomain = "edge.hermez.one";
     }
 }
