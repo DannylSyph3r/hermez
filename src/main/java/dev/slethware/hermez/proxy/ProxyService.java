@@ -1,6 +1,8 @@
 package dev.slethware.hermez.proxy;
 
 import dev.slethware.hermez.config.HermezConfigProperties;
+import dev.slethware.hermez.requestinspection.LogStatus;
+import dev.slethware.hermez.requestinspection.RequestInspectionService;
 import dev.slethware.hermez.tunnel.TunnelLookupResult;
 import dev.slethware.hermez.tunnel.TunnelRegistry;
 import dev.slethware.hermez.tunnel.protocol.HttpRequestMessage;
@@ -20,15 +22,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
@@ -46,6 +47,7 @@ public class ProxyService {
     private final HeaderTransformer headerTransformer;
     private final RateLimiter rateLimiter;
     private final HermezConfigProperties config;
+    private final RequestInspectionService requestInspectionService;
 
     private String page404;
     private String page503;
@@ -125,8 +127,11 @@ public class ProxyService {
             String subdomain,
             String displayHost) {
 
+        Instant startedAt = Instant.now();
         int localPort = local.connection().getTunnelInfo().localPort();
+        UUID userId = local.connection().getTunnelInfo().userId();
         InetSocketAddress clientAddress = request.getRemoteAddress();
+        String clientIp = clientAddress != null ? clientAddress.getAddress().getHostAddress() : null;
         String requestId = UUID.randomUUID().toString();
 
         HttpHeaders transformedHeaders = headerTransformer.transform(
@@ -140,7 +145,6 @@ public class ProxyService {
                     dataBuffer.read(bodyBytes);
                     DataBufferUtils.release(dataBuffer);
 
-                    // Flatten to single-value header map per protocol spec
                     Map<String, String> headersMap = new HashMap<>();
                     transformedHeaders.forEach((name, values) -> {
                         if (!values.isEmpty()) headersMap.put(name, values.getFirst());
@@ -160,17 +164,57 @@ public class ProxyService {
 
                     log.debug("Forwarding: subdomain={} method={} path={}", subdomain, message.method(), message.path());
 
-                    return local.connection().sendRequest(message)
-                            .timeout(config.getTunnel().getRequestTimeout());
-                })
-                .flatMap(tunnelResponse -> writeProxyResponse(response, tunnelResponse))
-                .onErrorResume(TimeoutException.class, e -> {
-                    log.warn("Tunnel request timed out: subdomain={}", subdomain);
-                    return writeErrorPage(response, HttpStatus.GATEWAY_TIMEOUT, page502, displayHost);
-                })
-                .onErrorResume(e -> {
-                    log.error("Tunnel forwarding error: subdomain={} error={}", subdomain, e.getMessage());
-                    return writeErrorPage(response, HttpStatus.BAD_GATEWAY, page502, displayHost);
+                    return requestInspectionService.captureRequest(
+                                    subdomain, userId, requestId,
+                                    request.getMethod().name(), rawPath, rawQuery, clientIp,
+                                    headersMap, bodyBytes, startedAt)
+                            .map(Optional::of)
+                            .onErrorResume(e -> {
+                                log.warn("Inspection capture failed, proceeding without capture: {}", e.getMessage());
+                                return Mono.just(Optional.empty());
+                            })
+                            .flatMap(optLogId ->
+                                    local.connection().sendRequest(message)
+                                            .timeout(config.getTunnel().getRequestTimeout())
+                                            .flatMap(tunnelResponse -> {
+                                                optLogId.ifPresent(logId ->
+                                                        requestInspectionService.completeCapture(logId, tunnelResponse, Instant.now())
+                                                                .onErrorResume(err -> {
+                                                                    log.warn("Failed to complete inspection log {}: {}", logId, err.getMessage());
+                                                                    return Mono.empty();
+                                                                })
+                                                                .subscribeOn(Schedulers.boundedElastic())
+                                                                .subscribe()
+                                                );
+                                                return writeProxyResponse(response, tunnelResponse);
+                                            })
+                                            .onErrorResume(TimeoutException.class, e -> {
+                                                log.warn("Tunnel request timed out: subdomain={}", subdomain);
+                                                optLogId.ifPresent(logId ->
+                                                        requestInspectionService.failCapture(logId, "Request timed out", LogStatus.TIMEOUT, Instant.now())
+                                                                .onErrorResume(err -> {
+                                                                    log.warn("Failed to fail inspection log {}: {}", logId, err.getMessage());
+                                                                    return Mono.empty();
+                                                                })
+                                                                .subscribeOn(Schedulers.boundedElastic())
+                                                                .subscribe()
+                                                );
+                                                return writeErrorPage(response, HttpStatus.GATEWAY_TIMEOUT, page502, displayHost);
+                                            })
+                                            .onErrorResume(e -> {
+                                                log.error("Tunnel forwarding error: subdomain={} error={}", subdomain, e.getMessage());
+                                                optLogId.ifPresent(logId ->
+                                                        requestInspectionService.failCapture(logId, e.getMessage(), LogStatus.ERROR, Instant.now())
+                                                                .onErrorResume(err -> {
+                                                                    log.warn("Failed to fail inspection log {}: {}", logId, err.getMessage());
+                                                                    return Mono.empty();
+                                                                })
+                                                                .subscribeOn(Schedulers.boundedElastic())
+                                                                .subscribe()
+                                                );
+                                                return writeErrorPage(response, HttpStatus.BAD_GATEWAY, page502, displayHost);
+                                            })
+                            );
                 });
     }
 

@@ -48,6 +48,8 @@ public enum SubscriptionTier {
         return maxCustomDomains == -1;
     }
 
+    public boolean hasFullLogDetail() { return logDetail == LogDetail.FULL; }
+
     public boolean canReplay() {
         return this == PETASOS || this == TALARIA;
     }

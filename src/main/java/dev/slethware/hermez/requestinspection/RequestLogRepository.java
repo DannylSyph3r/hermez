@@ -14,24 +14,38 @@ import java.util.UUID;
 @Repository
 public interface RequestLogRepository extends ReactiveCrudRepository<RequestLog, UUID> {
 
-    Flux<RequestLog> findByTunnelIdOrderByStartedAtDesc(String tunnelId, Pageable pageable);
+    Flux<RequestLog> findByTunnelIdAndUserIdOrderByStartedAtDesc(String tunnelId, UUID userId, Pageable pageable);
 
-    Mono<RequestLog> findByIdAndUserId(UUID id, UUID userId);
+    Mono<Long> countByTunnelIdAndUserId(String tunnelId, UUID userId);
+
+    Mono<RequestLog> findByIdAndTunnelIdAndUserId(UUID id, String tunnelId, UUID userId);
+
+    Mono<Long> countByUserId(UUID userId);
 
     @Modifying
     @Query("DELETE FROM request_logs WHERE user_id = :userId AND started_at < :cutoff")
     Mono<Void> deleteByUserIdAndStartedAtBefore(UUID userId, Instant cutoff);
 
-    Mono<Long> countByUserId(UUID userId);
-
-    @Query("SELECT id FROM request_logs WHERE user_id = :userId ORDER BY started_at ASC LIMIT :limit")
-    Flux<UUID> findOldestIdsByUserId(UUID userId, int limit);
-
     @Modifying
-    @Query("DELETE FROM request_logs WHERE user_id = :userId AND id IN (SELECT id FROM request_logs WHERE user_id = :userId ORDER BY started_at ASC LIMIT :limit)")
+    @Query("DELETE FROM request_logs WHERE user_id = :userId AND id IN " +
+            "(SELECT id FROM request_logs WHERE user_id = :userId ORDER BY started_at ASC LIMIT :limit)")
     Mono<Void> deleteOldestByUserId(UUID userId, int limit);
 
     @Modifying
     @Query("DELETE FROM request_logs WHERE tunnel_id = :tunnelId AND user_id = :userId")
     Mono<Void> deleteByTunnelIdAndUserId(String tunnelId, UUID userId);
+
+    @Modifying
+    @Query("UPDATE request_logs SET status = 'completed', status_code = :statusCode, " +
+            "response_headers = CAST(:responseHeaders AS jsonb), response_body = :responseBody, " +
+            "response_body_truncated = :truncated, response_size = :responseSize, " +
+            "completed_at = :completedAt, duration_ms = :durationMs WHERE id = :logId")
+    Mono<Void> updateCompleted(UUID logId, int statusCode, String responseHeaders,
+                               byte[] responseBody, boolean truncated, Integer responseSize,
+                               Instant completedAt, int durationMs);
+
+    @Modifying
+    @Query("UPDATE request_logs SET status = :status, error_message = :errorMessage, " +
+            "completed_at = :completedAt WHERE id = :logId")
+    Mono<Void> updateFailed(UUID logId, String status, String errorMessage, Instant completedAt);
 }
