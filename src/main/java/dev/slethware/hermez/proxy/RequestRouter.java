@@ -1,6 +1,7 @@
 package dev.slethware.hermez.proxy;
 
 import dev.slethware.hermez.config.HermezConfigProperties;
+import dev.slethware.hermez.domain.CustomDomainService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
@@ -17,7 +18,10 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class RequestRouter implements WebFilter {
 
+    public static final String HERMEZ_RESOLVED_SUBDOMAIN = "HERMEZ_RESOLVED_SUBDOMAIN";
+
     private final ProxyService proxyService;
+    private final CustomDomainService customDomainService;
     private final HermezConfigProperties config;
 
     @Override
@@ -47,7 +51,12 @@ public class RequestRouter implements WebFilter {
             return proxyService.handle(exchange);
         }
 
-        // Anything else (e.g. localhost in dev) → pass through
-        return chain.filter(exchange);
+        // Custom domain — resolve against registered domains, route to proxy if found
+        return customDomainService.resolveSubdomain(hostWithoutPort)
+                .flatMap(resolvedSubdomain -> {
+                    exchange.getAttributes().put(HERMEZ_RESOLVED_SUBDOMAIN, resolvedSubdomain);
+                    return proxyService.handle(exchange);
+                })
+                .switchIfEmpty(Mono.defer(() -> chain.filter(exchange)));
     }
 }

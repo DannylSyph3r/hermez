@@ -65,10 +65,20 @@ public class ProxyService {
         ServerHttpRequest request = exchange.getRequest();
         ServerHttpResponse response = exchange.getResponse();
 
-        String subdomain = subdomainExtractor.extract(request);
+        // Custom domain traffic arrives with a pre-resolved subdomain attribute set by RequestRouter
+        String resolvedSubdomain = exchange.getAttribute(RequestRouter.HERMEZ_RESOLVED_SUBDOMAIN);
+        String subdomain = resolvedSubdomain != null
+                ? resolvedSubdomain
+                : subdomainExtractor.extract(request);
+
         if (subdomain == null) {
-            return writeErrorPage(response, HttpStatus.BAD_REQUEST, page404, "unknown");
+            return writeErrorPage(response, HttpStatus.NOT_FOUND, page404, "unknown");
         }
+
+        // For custom domain traffic, error pages show the original host the user typed
+        String displayHost = resolvedSubdomain != null
+                ? extractHostWithoutPort(request)
+                : subdomain;
 
         return rateLimiter.checkLimit(subdomain)
                 .flatMap(rateLimit -> {
@@ -78,7 +88,7 @@ public class ProxyService {
                         log.info("Rate limit exceeded: subdomain={} count={}/{}", subdomain, rateLimit.count(), rateLimit.limit());
                         response.getHeaders().set("Retry-After", String.valueOf(rateLimit.retryAfterSeconds()));
                         response.getHeaders().set("X-RateLimit-Remaining", "0");
-                        return writeErrorPage(response, HttpStatus.TOO_MANY_REQUESTS, page429, subdomain);
+                        return writeErrorPage(response, HttpStatus.TOO_MANY_REQUESTS, page429, displayHost);
                     }
 
                     response.getHeaders().set("X-RateLimit-Remaining",
@@ -87,22 +97,22 @@ public class ProxyService {
                     return tunnelRegistry.lookup(subdomain)
                             .flatMap(result -> switch (result) {
                                 case TunnelLookupResult.Local local ->
-                                        forwardToTunnel(local, request, response, subdomain);
+                                        forwardToTunnel(local, request, response, subdomain, displayHost);
 
                                 case TunnelLookupResult.ServerDead ignored -> {
                                     log.warn("Dead server for subdomain={}", subdomain);
-                                    yield writeErrorPage(response, HttpStatus.SERVICE_UNAVAILABLE, page503, subdomain);
+                                    yield writeErrorPage(response, HttpStatus.SERVICE_UNAVAILABLE, page503, displayHost);
                                 }
 
                                 case TunnelLookupResult.Remote ignored -> {
                                     // Single-server MVP — cross-server forwarding not implemented
                                     log.warn("Remote tunnel lookup for subdomain={} not supported in MVP", subdomain);
-                                    yield writeErrorPage(response, HttpStatus.SERVICE_UNAVAILABLE, page503, subdomain);
+                                    yield writeErrorPage(response, HttpStatus.SERVICE_UNAVAILABLE, page503, displayHost);
                                 }
 
                                 case TunnelLookupResult.NotFound ignored -> {
                                     log.debug("Tunnel not found: subdomain={}", subdomain);
-                                    yield writeErrorPage(response, HttpStatus.NOT_FOUND, page404, subdomain);
+                                    yield writeErrorPage(response, HttpStatus.NOT_FOUND, page404, displayHost);
                                 }
                             });
                 });
@@ -112,7 +122,8 @@ public class ProxyService {
             TunnelLookupResult.Local local,
             ServerHttpRequest request,
             ServerHttpResponse response,
-            String subdomain) {
+            String subdomain,
+            String displayHost) {
 
         int localPort = local.connection().getTunnelInfo().localPort();
         InetSocketAddress clientAddress = request.getRemoteAddress();
@@ -155,12 +166,19 @@ public class ProxyService {
                 .flatMap(tunnelResponse -> writeProxyResponse(response, tunnelResponse))
                 .onErrorResume(TimeoutException.class, e -> {
                     log.warn("Tunnel request timed out: subdomain={}", subdomain);
-                    return writeErrorPage(response, HttpStatus.GATEWAY_TIMEOUT, page502, subdomain);
+                    return writeErrorPage(response, HttpStatus.GATEWAY_TIMEOUT, page502, displayHost);
                 })
                 .onErrorResume(e -> {
                     log.error("Tunnel forwarding error: subdomain={} error={}", subdomain, e.getMessage());
-                    return writeErrorPage(response, HttpStatus.BAD_GATEWAY, page502, subdomain);
+                    return writeErrorPage(response, HttpStatus.BAD_GATEWAY, page502, displayHost);
                 });
+    }
+
+    private String extractHostWithoutPort(ServerHttpRequest request) {
+        String host = request.getHeaders().getFirst(HttpHeaders.HOST);
+        if (host == null) return "unknown";
+        int colonIdx = host.indexOf(':');
+        return colonIdx != -1 ? host.substring(0, colonIdx) : host;
     }
 
     private Mono<Void> writeProxyResponse(ServerHttpResponse response, HttpResponseMessage tunnelResponse) {
