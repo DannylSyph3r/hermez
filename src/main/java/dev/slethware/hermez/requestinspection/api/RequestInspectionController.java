@@ -20,34 +20,37 @@ import java.util.UUID;
 @Tag(name = "Inspection", description = "Request inspection and log management endpoints")
 public class RequestInspectionController {
 
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final RequestInspectionService requestInspectionService;
-    private final ReplayService replayService;
+    private final ReplayService            replayService;
 
     @GetMapping("/{tunnelId}/requests")
     @Operation(
             summary = "List requests for a tunnel",
-            description = "Returns a paginated list of captured requests for the specified tunnel."
+            description = "Returns a paginated list of captured requests for the specified tunnel. Maximum page size is 100."
     )
     public Mono<ApiResponse<RequestLogPage>> listRequests(
             @PathVariable String tunnelId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
+        int clampedSize = Math.min(size, MAX_PAGE_SIZE);
         return SecurityContextUtil.getCurrentUserId()
-                .flatMap(userId -> requestInspectionService.listRequests(userId, tunnelId, page, size))
+                .flatMap(userId -> requestInspectionService.listRequests(userId, tunnelId, page, clampedSize))
                 .map(result -> ApiResponseUtil.successFull("Requests retrieved successfully", result));
     }
 
     @GetMapping("/{tunnelId}/requests/{requestId}")
     @Operation(
             summary = "Get request detail",
-            description = "Returns the full detail of a single captured request."
+            description = "Returns the full detail of a single captured request, including base64-encoded body for Petasos+ tier."
     )
     public Mono<ApiResponse<RequestLogResponse>> getRequest(
             @PathVariable String tunnelId,
             @PathVariable UUID requestId) {
         return SecurityContextUtil.getCurrentUserId()
                 .flatMap(userId -> requestInspectionService.getRequest(userId, tunnelId, requestId))
-                .map(log -> ApiResponseUtil.successFull("Request retrieved successfully", RequestLogResponse.from(log)));
+                .map(log -> ApiResponseUtil.successFull("Request retrieved successfully", RequestLogResponse.fromDetail(log)));
     }
 
     @PostMapping("/{tunnelId}/requests/{requestId}/replay")
