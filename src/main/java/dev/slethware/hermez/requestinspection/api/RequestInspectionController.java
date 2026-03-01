@@ -23,7 +23,7 @@ public class RequestInspectionController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final RequestInspectionService requestInspectionService;
-    private final ReplayService            replayService;
+    private final ReplayService replayService;
 
     @GetMapping("/{tunnelId}/requests")
     @Operation(
