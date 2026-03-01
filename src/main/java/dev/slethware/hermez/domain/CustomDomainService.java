@@ -2,6 +2,7 @@ package dev.slethware.hermez.domain;
 
 import dev.slethware.hermez.config.HermezConfigProperties;
 import dev.slethware.hermez.exception.BadRequestException;
+import dev.slethware.hermez.exception.ConflictException;
 import dev.slethware.hermez.exception.ForbiddenException;
 import dev.slethware.hermez.exception.ResourceNotFoundException;
 import dev.slethware.hermez.subdomain.SubdomainReservationRepository;
@@ -51,6 +52,7 @@ public class CustomDomainService {
                     SubscriptionTier tier = SubscriptionTier.fromValue(user.getTier());
                     return checkDomainLimit(userId, tier)
                             .then(validateDomain(normalizedDomain))
+                            .then(checkDomainNotTaken(normalizedDomain))
                             .then(validateLinkedSubdomain(linkedSubdomain, userId))
                             .then(Mono.defer(() -> {
                                 String token = verificationService.generateVerificationToken();
@@ -80,13 +82,17 @@ public class CustomDomainService {
                             if (verified) {
                                 log.info("Domain verified successfully: {}", domain.getDomain());
                                 domain.setStatus(DomainStatus.ACTIVE.value());
-                                domain.setVerifiedAt(LocalDateTime.now());
+                                if (domain.getVerifiedAt() == null) {
+                                    domain.setVerifiedAt(LocalDateTime.now());
+                                }
                                 domain.setUpdatedAt(LocalDateTime.now());
                                 return domainRepository.save(domain)
                                         .flatMap(saved -> evictCache(saved.getDomain()).thenReturn(saved));
                             }
-                            log.debug("DNS verification not yet passing for domain: {}", domain.getDomain());
-                            return Mono.just(domain);
+                            log.debug("DNS verification failed for domain: {}", domain.getDomain());
+                            domain.setStatus(DomainStatus.FAILED.value());
+                            domain.setUpdatedAt(LocalDateTime.now());
+                            return domainRepository.save(domain);
                         })
                 );
     }
@@ -117,6 +123,12 @@ public class CustomDomainService {
                                         .thenReturn(d.getLinkedSubdomain())
                                 )
                 );
+    }
+
+    private Mono<Void> checkDomainNotTaken(String domain) {
+        return domainRepository.findByDomain(domain)
+                .flatMap(existing -> Mono.<Void>error(new ConflictException("Domain '" + domain + "' is already registered")))
+                .switchIfEmpty(Mono.empty());
     }
 
     private Mono<Void> checkDomainLimit(UUID userId, SubscriptionTier tier) {
