@@ -132,7 +132,7 @@ public class ReplayService {
                                                     .build();
 
                                             return requestLogRepository.save(replayLog)
-                                                    .map(RequestLogResponse::from);
+                                                    .map(RequestLogResponse::fromDetail);
                                         });
                             });
                 });
