@@ -127,8 +127,9 @@ public class CustomDomainService {
 
     private Mono<Void> checkDomainNotTaken(String domain) {
         return domainRepository.findByDomain(domain)
-                .flatMap(existing -> Mono.<Void>error(new ConflictException("Domain '" + domain + "' is already registered")))
-                .switchIfEmpty(Mono.empty());
+                .flatMap(existing -> Mono.error(
+                        new ConflictException("Domain '" + domain + "' is already registered")
+                ));
     }
 
     private Mono<Void> checkDomainLimit(UUID userId, SubscriptionTier tier) {
@@ -148,7 +149,7 @@ public class CustomDomainService {
                                         tier.getValue(), tier.getMaxCustomDomains())
                         ));
                     }
-                    return Mono.<Void>empty();
+                    return Mono.empty();
                 });
     }
 
@@ -162,6 +163,10 @@ public class CustomDomainService {
         }
         if (!FQDN_PATTERN.matcher(domain).matches()) {
             return Mono.error(new BadRequestException("Invalid domain format"));
+        }
+        if (domain.split("\\.").length < 3) {
+            return Mono.error(new BadRequestException(
+                    "Apex domains are not supported. Please use a subdomain instead"));
         }
         return Mono.empty();
     }
@@ -177,7 +182,7 @@ public class CustomDomainService {
                                 "Subdomain '" + linkedSubdomain + "' is not reserved by you"
                         ));
                     }
-                    return Mono.<Void>empty();
+                    return Mono.empty();
                 });
     }
 
