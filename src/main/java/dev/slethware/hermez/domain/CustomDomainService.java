@@ -107,9 +107,17 @@ public class CustomDomainService {
         return domainRepository.findById(domainId)
                 .filter(d -> d.getUserId().equals(userId))
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Domain not found")))
-                .flatMap(domain -> domainRepository.deleteById(domainId)
-                        .then(evictCache(domain.getDomain()))
-                );
+                .flatMap(domain -> {
+                    String tunnelKey = "tunnel:" + domain.getLinkedSubdomain();
+                    return redisTemplate.opsForValue().get(tunnelKey)
+                            .flatMap(json -> Mono.<Void>error(new ConflictException(
+                                    "Cannot delete domain with active tunnel. Close the tunnel first."
+                            )))
+                            .switchIfEmpty(
+                                    domainRepository.deleteById(domainId)
+                                            .then(evictCache(domain.getDomain()))
+                            );
+                });
     }
 
     public Mono<String> resolveSubdomain(String host) {
