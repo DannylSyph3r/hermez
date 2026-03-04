@@ -131,7 +131,11 @@ public class ProxyService {
         int localPort = local.connection().getTunnelInfo().localPort();
         UUID userId = local.connection().getTunnelInfo().userId();
         InetSocketAddress clientAddress = request.getRemoteAddress();
-        String clientIp = clientAddress != null ? clientAddress.getAddress().getHostAddress() : null;
+        String clientIp = clientAddress != null
+                ? (clientAddress.getAddress() != null
+                ? clientAddress.getAddress().getHostAddress()
+                : clientAddress.getHostString())
+                : null;
         String requestId = UUID.randomUUID().toString();
 
         HttpHeaders transformedHeaders = headerTransformer.transform(
