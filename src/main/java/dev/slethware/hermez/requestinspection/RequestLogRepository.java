@@ -20,6 +20,23 @@ public interface RequestLogRepository extends ReactiveCrudRepository<RequestLog,
 
     Mono<RequestLog> findByIdAndTunnelIdAndUserId(UUID id, String tunnelId, UUID userId);
 
+    @Query("INSERT INTO request_logs (tunnel_id, user_id, request_id, method, path, query_string, " +
+            "request_headers, request_body, request_body_truncated, request_size, client_ip, " +
+            "status_code, response_headers, response_body, response_body_truncated, response_size, " +
+            "started_at, completed_at, duration_ms, status, error_message, parent_request_id, log_detail) " +
+            "VALUES (:tunnelId, :userId, :requestId, :method, :path, :queryString, " +
+            "CAST(:requestHeaders AS jsonb), :requestBody, :requestBodyTruncated, :requestSize, :clientIp, " +
+            ":statusCode, CAST(:responseHeaders AS jsonb), :responseBody, :responseBodyTruncated, :responseSize, " +
+            ":startedAt, :completedAt, :durationMs, :status, :errorMessage, :parentRequestId, :logDetail) " +
+            "RETURNING *")
+    Mono<RequestLog> insertLog(String tunnelId, UUID userId, String requestId, String method, String path,
+                               String queryString, String requestHeaders, byte[] requestBody,
+                               boolean requestBodyTruncated, int requestSize, String clientIp,
+                               Integer statusCode, String responseHeaders, byte[] responseBody,
+                               boolean responseBodyTruncated, Integer responseSize,
+                               Instant startedAt, Instant completedAt, Integer durationMs,
+                               String status, String errorMessage, UUID parentRequestId, String logDetail);
+
     @Modifying
     @Query("DELETE FROM request_logs WHERE tunnel_id = :tunnelId AND user_id = :userId")
     Mono<Void> deleteByTunnelIdAndUserId(String tunnelId, UUID userId);
