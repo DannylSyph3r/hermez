@@ -63,27 +63,14 @@ public class RequestInspectionService {
                         }
                     }
 
-                    RequestLog entry = RequestLog.builder()
-                            .tunnelId(subdomain)
-                            .userId(userId)
-                            .requestId(requestId)
-                            .method(method)
-                            .path(path)
-                            .queryString(queryString)
-                            .requestHeaders(headersJson)
-                            .requestBody(storedBody)
-                            .requestBodyTruncated(requestTruncated)
-                            .requestSize(requestSize)
-                            .clientIp(clientIp)
-                            .startedAt(startedAt)
-                            .status(LogStatus.PENDING.value())
-                            .logDetail(isFull
-                                    ? SubscriptionTier.LogDetail.FULL.name().toLowerCase()
-                                    : SubscriptionTier.LogDetail.BASIC.name().toLowerCase())
-                            .build();
-
-                    return requestLogRepository.save(entry)
-                            .map(RequestLog::getId);
+                    return requestLogRepository.insertLog(
+                            subdomain, userId, requestId, method, path, queryString,
+                            headersJson, storedBody, requestTruncated, requestSize, clientIp,
+                            null, null, null, false, null,
+                            startedAt, null, null, LogStatus.PENDING.value(), null, null,
+                            isFull ? SubscriptionTier.LogDetail.FULL.name().toLowerCase()
+                                    : SubscriptionTier.LogDetail.BASIC.name().toLowerCase()
+                    ).map(RequestLog::getId);
                 });
     }
 

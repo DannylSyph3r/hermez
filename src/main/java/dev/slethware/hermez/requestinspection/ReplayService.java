@@ -106,33 +106,19 @@ public class ReplayService {
                                                 }
                                             }
 
-                                            RequestLog replayLog = RequestLog.builder()
-                                                    .tunnelId(originalLog.getTunnelId())
-                                                    .userId(originalLog.getUserId())
-                                                    .requestId(replayRequestId.toString())
-                                                    .method(originalLog.getMethod())
-                                                    .path(originalLog.getPath())
-                                                    .queryString(originalLog.getQueryString())
-                                                    .requestHeaders(originalLog.getRequestHeaders())
-                                                    .requestBody(originalLog.getRequestBody())
-                                                    .requestBodyTruncated(originalLog.isRequestBodyTruncated())
-                                                    .requestSize(originalLog.getRequestSize())
-                                                    .clientIp(originalLog.getClientIp())
-                                                    .startedAt(startedAt)
-                                                    .completedAt(completedAt)
-                                                    .durationMs(durationMs)
-                                                    .status(LogStatus.COMPLETED.value())
-                                                    .statusCode(tunnelResponse.statusCode())
-                                                    .responseHeaders(responseHeadersJson)
-                                                    .responseBody(responseBody)
-                                                    .responseBodyTruncated(truncated)
-                                                    .responseSize(responseSize)
-                                                    .logDetail(SubscriptionTier.LogDetail.FULL.name().toLowerCase())
-                                                    .parentRequestId(originalLog.getId())
-                                                    .build();
-
-                                            return requestLogRepository.save(replayLog)
-                                                    .map(RequestLogResponse::fromDetail);
+                                            return requestLogRepository.insertLog(
+                                                    originalLog.getTunnelId(), originalLog.getUserId(),
+                                                    replayRequestId.toString(), originalLog.getMethod(),
+                                                    originalLog.getPath(), originalLog.getQueryString(),
+                                                    originalLog.getRequestHeaders(), originalLog.getRequestBody(),
+                                                    originalLog.isRequestBodyTruncated(), originalLog.getRequestSize(),
+                                                    originalLog.getClientIp(),
+                                                    tunnelResponse.statusCode(), responseHeadersJson, responseBody,
+                                                    truncated, responseSize,
+                                                    startedAt, completedAt, durationMs,
+                                                    LogStatus.COMPLETED.value(), null, originalLog.getId(),
+                                                    SubscriptionTier.LogDetail.FULL.name().toLowerCase()
+                                            ).map(RequestLogResponse::fromDetail);
                                         });
                             });
                 });
