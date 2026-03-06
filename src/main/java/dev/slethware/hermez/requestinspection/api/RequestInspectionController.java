@@ -66,6 +66,19 @@ public class RequestInspectionController {
                 .map(result -> ApiResponseUtil.successFull("Request replayed successfully", result));
     }
 
+    @DeleteMapping("/{tunnelId}/requests/{requestId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(
+            summary = "Delete a single request log",
+            description = "Permanently deletes a single captured request log entry. Ownership-checked."
+    )
+    public Mono<Void> deleteRequest(
+            @PathVariable String tunnelId,
+            @PathVariable UUID requestId) {
+        return SecurityContextUtil.getCurrentUserId()
+                .flatMap(userId -> requestInspectionService.deleteRequest(userId, tunnelId, requestId));
+    }
+
     @DeleteMapping("/{tunnelId}/requests")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(

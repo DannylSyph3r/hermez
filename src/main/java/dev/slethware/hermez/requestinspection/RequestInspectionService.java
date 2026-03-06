@@ -136,6 +136,12 @@ public class RequestInspectionService {
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Request log not found")));
     }
 
+    public Mono<Void> deleteRequest(UUID userId, String tunnelId, UUID requestId) {
+        return requestLogRepository.findByIdAndTunnelIdAndUserId(requestId, tunnelId, userId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Request log not found")))
+                .flatMap(log -> requestLogRepository.deleteByIdAndTunnelIdAndUserId(requestId, tunnelId, userId));
+    }
+
     public Mono<Void> clearLogs(UUID userId, String tunnelId) {
         return requestLogRepository.deleteByTunnelIdAndUserId(tunnelId, userId);
     }

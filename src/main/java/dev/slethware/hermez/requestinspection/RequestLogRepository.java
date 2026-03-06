@@ -42,6 +42,10 @@ public interface RequestLogRepository extends ReactiveCrudRepository<RequestLog,
     Mono<Void> deleteByTunnelIdAndUserId(String tunnelId, UUID userId);
 
     @Modifying
+    @Query("DELETE FROM request_logs WHERE id = :requestId AND tunnel_id = :tunnelId AND user_id = :userId")
+    Mono<Void> deleteByIdAndTunnelIdAndUserId(UUID requestId, String tunnelId, UUID userId);
+
+    @Modifying
     @Query("UPDATE request_logs SET status = 'completed', status_code = :statusCode, " +
             "response_headers = CAST(:responseHeaders AS jsonb), response_body = :responseBody, " +
             "response_body_truncated = :truncated, response_size = :responseSize, " +
