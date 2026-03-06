@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class HeartbeatManager {
 
     private static final Duration PING_INTERVAL  = Duration.ofSeconds(5);
-    private static final Duration PONG_DEADLINE  = Duration.ofSeconds(3);
+    private static final Duration PONG_DEADLINE  = Duration.ofSeconds(10);
 
     private final ConcurrentHashMap<String, Disposable> tasks = new ConcurrentHashMap<>();
 
