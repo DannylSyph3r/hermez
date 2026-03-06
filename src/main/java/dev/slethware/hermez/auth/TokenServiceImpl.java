@@ -34,6 +34,7 @@ public class TokenServiceImpl implements TokenService {
     private final ApiKeyService apiKeyService;
 
     private static final String REFRESH_TOKEN_PREFIX = "refresh_token:user:";
+    private static final String REFRESH_TOKEN_HASH_PREFIX = "refresh_token:hash:";
     private static final String TOKEN_TYPE_ACCESS = "access";
 
     @Override
@@ -56,11 +57,13 @@ public class TokenServiceImpl implements TokenService {
         String rawToken = generateSecureToken();
         String hashedToken = hashToken(rawToken);
 
-        String redisKey = REFRESH_TOKEN_PREFIX + user.getId().toString();
+        String userKey = REFRESH_TOKEN_PREFIX + user.getId().toString();
+        String reverseKey = REFRESH_TOKEN_HASH_PREFIX + hashedToken;
         Duration ttl = Duration.ofMillis(authProperties.getJwt().getRefreshTokenExpiration());
 
         return redisTemplate.opsForValue()
-                .set(redisKey, hashedToken, ttl)
+                .set(userKey, hashedToken, ttl)
+                .then(redisTemplate.opsForValue().set(reverseKey, user.getId().toString(), ttl))
                 .thenReturn(rawToken);
     }
 
@@ -100,21 +103,25 @@ public class TokenServiceImpl implements TokenService {
     @Override
     public Mono<UUID> validateRefreshToken(String refreshToken) {
         String hashedToken = hashToken(refreshToken);
+        String reverseKey = REFRESH_TOKEN_HASH_PREFIX + hashedToken;
 
-        return redisTemplate.keys(REFRESH_TOKEN_PREFIX + "*")
-                .flatMap(key -> redisTemplate.opsForValue().get(key)
-                        .filter(storedHash -> storedHash.equals(hashedToken))
-                        .map(hash -> {
-                            String userIdStr = key.replace(REFRESH_TOKEN_PREFIX, "");
-                            return UUID.fromString(userIdStr);
-                        }))
-                .next();
+        return redisTemplate.opsForValue().get(reverseKey)
+                .map(UUID::fromString);
     }
 
     @Override
     public Mono<Void> invalidateRefreshToken(UUID userId) {
-        String redisKey = REFRESH_TOKEN_PREFIX + userId.toString();
-        return redisTemplate.delete(redisKey).then();
+        String userKey = REFRESH_TOKEN_PREFIX + userId.toString();
+
+        return redisTemplate.opsForValue().get(userKey)
+                .switchIfEmpty(Mono.just(""))
+                .flatMap(hashedToken -> {
+                    if (hashedToken.isEmpty()) {
+                        return redisTemplate.delete(userKey).then();
+                    }
+                    String reverseKey = REFRESH_TOKEN_HASH_PREFIX + hashedToken;
+                    return redisTemplate.delete(userKey, reverseKey).then();
+                });
     }
 
     @Override
