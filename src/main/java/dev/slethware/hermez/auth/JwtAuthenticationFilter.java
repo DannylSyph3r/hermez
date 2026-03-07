@@ -33,24 +33,24 @@ public class JwtAuthenticationFilter implements WebFilter {
         return tokenService.validateAccessToken(token)
                 .flatMap(userId -> tokenService.resolveTier(token)
                         .defaultIfEmpty("chelys")
-                        .flatMap(tier -> {
+                        .map(tier -> {
                             List<SimpleGrantedAuthority> authorities = List.of(
                                     new SimpleGrantedAuthority("ROLE_USER"),
                                     new SimpleGrantedAuthority("TIER_" + tier.toUpperCase())
                             );
 
-                            UsernamePasswordAuthenticationToken auth =
-                                    new UsernamePasswordAuthenticationToken(userId.toString(), null, authorities);
-
-                            return chain.filter(exchange)
-                                    .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
+                            return new UsernamePasswordAuthenticationToken(
+                                    userId.toString(), null, authorities);
                         })
                 )
                 .switchIfEmpty(Mono.defer(() -> {
                     log.debug("Invalid or expired token");
                     exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                    return exchange.getResponse().setComplete();
-                }));
+                    return exchange.getResponse().setComplete().then(Mono.empty());
+                }))
+                .flatMap(auth -> chain.filter(exchange)
+                        .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth))
+                );
     }
 
     private String extractToken(ServerHttpRequest request) {
