@@ -18,6 +18,8 @@ public interface RequestLogRepository extends ReactiveCrudRepository<RequestLog,
 
     Mono<Long> countByTunnelIdAndUserId(String tunnelId, UUID userId);
 
+    Mono<Long> countByUserIdAndStartedAtAfter(UUID userId, Instant since);
+
     Mono<RequestLog> findByIdAndTunnelIdAndUserId(UUID id, String tunnelId, UUID userId);
 
     @Query("INSERT INTO request_logs (tunnel_id, user_id, request_id, method, path, query_string, " +

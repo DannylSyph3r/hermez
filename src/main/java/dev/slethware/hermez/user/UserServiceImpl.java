@@ -3,7 +3,9 @@ package dev.slethware.hermez.user;
 import dev.slethware.hermez.common.util.SecurityContextUtil;
 import dev.slethware.hermez.exception.BadRequestException;
 import dev.slethware.hermez.exception.UnauthorizedException;
+import dev.slethware.hermez.requestinspection.RequestLogRepository;
 import dev.slethware.hermez.subdomain.SubdomainReservationRepository;
+import dev.slethware.hermez.tunnel.TunnelRegistry;
 import dev.slethware.hermez.user.api.ChangePasswordRequest;
 import dev.slethware.hermez.user.api.UpdateAvatarRequest;
 import dev.slethware.hermez.user.api.UpdateNameRequest;
@@ -14,7 +16,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Slf4j
@@ -25,6 +30,8 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final OAuthConnectionRepository oauthConnectionRepository;
     private final SubdomainReservationRepository subdomainReservationRepository;
+    private final TunnelRegistry tunnelRegistry;
+    private final RequestLogRepository requestLogRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -33,10 +40,7 @@ public class UserServiceImpl implements UserService {
                 .flatMap(userId -> userRepository.findById(userId)
                         .switchIfEmpty(Mono.error(new UnauthorizedException("User not found")))
                 )
-                .flatMap(user -> Mono.zip(
-                        subdomainReservationRepository.findByUserId(user.getId()).count(),
-                        oauthConnectionRepository.findByUserId(user.getId()).collectList()
-                ).map(tuple -> UserProfileResponse.from(user, tuple.getT1().intValue(), tuple.getT2())));
+                .flatMap(this::buildProfileResponse);
     }
 
     @Override
@@ -49,10 +53,7 @@ public class UserServiceImpl implements UserService {
                     user.setName(request.name().trim());
                     return userRepository.save(user);
                 })
-                .flatMap(savedUser -> Mono.zip(
-                        subdomainReservationRepository.findByUserId(savedUser.getId()).count(),
-                        oauthConnectionRepository.findByUserId(savedUser.getId()).collectList()
-                ).map(tuple -> UserProfileResponse.from(savedUser, tuple.getT1().intValue(), tuple.getT2())))
+                .flatMap(this::buildProfileResponse)
                 .doOnSuccess(user -> log.info("User name updated: {}", user.email()));
     }
 
@@ -66,10 +67,7 @@ public class UserServiceImpl implements UserService {
                     user.setAvatarUrl(request.avatarUrl().trim());
                     return userRepository.save(user);
                 })
-                .flatMap(savedUser -> Mono.zip(
-                        subdomainReservationRepository.findByUserId(savedUser.getId()).count(),
-                        oauthConnectionRepository.findByUserId(savedUser.getId()).collectList()
-                ).map(tuple -> UserProfileResponse.from(savedUser, tuple.getT1().intValue(), tuple.getT2())))
+                .flatMap(this::buildProfileResponse)
                 .doOnSuccess(user -> log.info("User avatar updated: {}", user.email()));
     }
 
@@ -177,5 +175,21 @@ public class UserServiceImpl implements UserService {
                 })
                 .doOnSuccess(user -> log.info("User account soft deleted: {}", user.getEmail()))
                 .then();
+    }
+
+    private Mono<UserProfileResponse> buildProfileResponse(User user) {
+        Instant startOfToday = LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant();
+        return Mono.zip(
+                subdomainReservationRepository.findByUserId(user.getId()).count(),
+                tunnelRegistry.listByUser(user.getId()).count(),
+                requestLogRepository.countByUserIdAndStartedAtAfter(user.getId(), startOfToday),
+                oauthConnectionRepository.findByUserId(user.getId()).collectList()
+        ).map(tuple -> UserProfileResponse.from(
+                user,
+                tuple.getT1().intValue(),
+                tuple.getT2().intValue(),
+                tuple.getT3().intValue(),
+                tuple.getT4()
+        ));
     }
 }

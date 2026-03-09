@@ -15,6 +15,8 @@ public record UserProfileResponse(
         String tier,
         boolean hasPassword,
         Integer reservedSubdomains,
+        Integer activeTunnels,
+        Integer requestsToday,
         List<OAuthConnectionInfo> oauthConnections
 ) {
     public record OAuthConnectionInfo(
@@ -29,7 +31,13 @@ public record UserProfileResponse(
         }
     }
 
-    public static UserProfileResponse from(User user, Integer reservedSubdomains, List<OAuthConnection> connections) {
+    public static UserProfileResponse from(
+            User user,
+            Integer reservedSubdomains,
+            Integer activeTunnels,
+            Integer requestsToday,
+            List<OAuthConnection> connections
+    ) {
         List<OAuthConnectionInfo> oauthInfos = connections.stream()
                 .map(OAuthConnectionInfo::from)
                 .toList();
@@ -42,6 +50,8 @@ public record UserProfileResponse(
                 user.getTier(),
                 user.getPasswordHash() != null,
                 reservedSubdomains,
+                activeTunnels,
+                requestsToday,
                 oauthInfos
         );
     }
