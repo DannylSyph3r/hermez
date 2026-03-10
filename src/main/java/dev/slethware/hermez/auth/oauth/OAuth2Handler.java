@@ -242,7 +242,7 @@ public class OAuth2Handler {
                         // Already linked to different user - error
                         log.warn("OAuth {} account {} already linked to different user", provider, providerId);
                         return Mono.error(new BadRequestException(
-                                "This " + provider + " account is already connected to another user."
+                                "This " + provider + " account is already in use."
                         ));
                     }
                 })
@@ -256,9 +256,8 @@ public class OAuth2Handler {
                                     log.warn("OAuth email mismatch for user {}: user={}, oauth={}",
                                             userId, user.getEmail(), oauthEmail);
                                     return Mono.error(new BadRequestException(
-                                            "The email associated with this " + provider + " account (" + oauthEmail + ") " +
-                                                    "does not match your Hermez account email (" + user.getEmail() + "). " +
-                                                    "Please use a " + provider + " account with a matching email address."
+                                            "Could not connect this " + provider + " account. Please ensure the email on your " +
+                                                    provider + " account matches your Hermez account."
                                     ));
                                 }
 
