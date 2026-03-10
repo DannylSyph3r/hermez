@@ -173,6 +173,7 @@ public class ProxyService {
                                     request.getMethod().name(), rawPath, rawQuery, clientIp,
                                     headersMap, bodyBytes, startedAt)
                             .map(Optional::of)
+                            .defaultIfEmpty(Optional.empty())
                             .onErrorResume(e -> {
                                 log.warn("Inspection capture failed, proceeding without capture: {}", e.getMessage());
                                 return Mono.just(Optional.empty());

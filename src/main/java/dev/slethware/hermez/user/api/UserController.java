@@ -48,6 +48,16 @@ public class UserController {
                 .map(user -> ApiResponseUtil.successFull("Avatar updated successfully", user));
     }
 
+    @PutMapping("/me/consent")
+    @Operation(
+            summary = "Update data capture consent",
+            description = "Sets the user's consent for request data capture. True enables capture (detail level determined by tier), false disables all capture."
+    )
+    public Mono<ApiResponse<Void>> updateConsent(@RequestBody UpdateConsentRequest request) {
+        return userService.updateConsent(request.consent())
+                .then(Mono.fromCallable(() -> ApiResponseUtil.successFullVoid("Consent updated successfully")));
+    }
+
     @PutMapping("/me/password")
     @Operation(
             summary = "Change password",

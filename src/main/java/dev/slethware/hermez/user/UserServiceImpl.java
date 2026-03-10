@@ -72,6 +72,20 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Mono<Void> updateConsent(boolean consent) {
+        return SecurityContextUtil.getCurrentUserId()
+                .flatMap(userId -> userRepository.findById(userId)
+                        .switchIfEmpty(Mono.error(new UnauthorizedException("User not found")))
+                )
+                .flatMap(user -> {
+                    user.setDataConsent(consent);
+                    return userRepository.save(user);
+                })
+                .doOnSuccess(user -> log.info("Data consent updated to {} for user: {}", consent, user.getEmail()))
+                .then();
+    }
+
+    @Override
     public Mono<Void> changePassword(ChangePasswordRequest request) {
         return SecurityContextUtil.getCurrentUserId()
                 .flatMap(userId -> userRepository.findById(userId)

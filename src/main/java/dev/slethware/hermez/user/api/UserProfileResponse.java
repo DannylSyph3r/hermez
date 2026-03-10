@@ -18,6 +18,7 @@ public record UserProfileResponse(
         Integer activeTunnels,
         Integer requestsToday,
         Integer requestsYesterday,
+        Boolean dataConsent,
         List<OAuthConnectionInfo> oauthConnections
 ) {
     public record OAuthConnectionInfo(
@@ -55,6 +56,7 @@ public record UserProfileResponse(
                 activeTunnels,
                 requestsToday,
                 requestsYesterday,
+                user.getDataConsent(),
                 oauthInfos
         );
     }

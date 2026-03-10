@@ -35,43 +35,53 @@ public class RequestInspectionService {
                                      Map<String, String> transformedHeaders, byte[] bodyBytes,
                                      Instant startedAt) {
         return userRepository.findById(userId)
-                .map(user -> SubscriptionTier.fromValue(user.getTier()))
-                .defaultIfEmpty(SubscriptionTier.CHELYS)
-                .flatMap(tier -> {
-                    boolean isFull = tier.hasFullLogDetail();
-                    int cap = config.getInspection().getMaxBodySizeBytes();
-
-                    byte[] storedBody = null;
-                    boolean requestTruncated = false;
-                    int requestSize = bodyBytes != null ? bodyBytes.length : 0;
-
-                    if (isFull && bodyBytes != null && bodyBytes.length > 0) {
-                        if (bodyBytes.length > cap) {
-                            storedBody = Arrays.copyOf(bodyBytes, cap);
-                            requestTruncated = true;
-                        } else {
-                            storedBody = bodyBytes;
-                        }
+                .flatMap(user -> {
+                    if (!Boolean.TRUE.equals(user.getDataConsent())) {
+                        return Mono.empty();
                     }
-
-                    String headersJson = null;
-                    if (isFull) {
-                        try {
-                            headersJson = objectMapper.writeValueAsString(transformedHeaders);
-                        } catch (JsonProcessingException e) {
-                            log.warn("Failed to serialize request headers for requestId={}: {}", requestId, e.getMessage());
-                        }
-                    }
-
-                    return requestLogRepository.insertLog(
-                            subdomain, userId, requestId, method, path, queryString,
-                            headersJson, storedBody, requestTruncated, requestSize, clientIp,
-                            null, null, null, false, null,
-                            startedAt, null, null, LogStatus.PENDING.value(), null, null,
-                            isFull ? SubscriptionTier.LogDetail.FULL.name().toLowerCase()
-                                    : SubscriptionTier.LogDetail.BASIC.name().toLowerCase()
-                    ).map(RequestLog::getId);
+                    SubscriptionTier tier = SubscriptionTier.fromValue(user.getTier());
+                    return doCapture(subdomain, userId, requestId, method, path, queryString,
+                            clientIp, transformedHeaders, bodyBytes, startedAt, tier);
                 });
+    }
+
+    private Mono<UUID> doCapture(String subdomain, UUID userId, String requestId,
+                                 String method, String path, String queryString, String clientIp,
+                                 Map<String, String> transformedHeaders, byte[] bodyBytes,
+                                 Instant startedAt, SubscriptionTier tier) {
+        boolean isFull = tier.hasFullLogDetail();
+        int cap = config.getInspection().getMaxBodySizeBytes();
+
+        byte[] storedBody = null;
+        boolean requestTruncated = false;
+        int requestSize = bodyBytes != null ? bodyBytes.length : 0;
+
+        if (isFull && bodyBytes != null && bodyBytes.length > 0) {
+            if (bodyBytes.length > cap) {
+                storedBody = Arrays.copyOf(bodyBytes, cap);
+                requestTruncated = true;
+            } else {
+                storedBody = bodyBytes;
+            }
+        }
+
+        String headersJson = null;
+        if (isFull) {
+            try {
+                headersJson = objectMapper.writeValueAsString(transformedHeaders);
+            } catch (JsonProcessingException e) {
+                log.warn("Failed to serialize request headers for requestId={}: {}", requestId, e.getMessage());
+            }
+        }
+
+        return requestLogRepository.insertLog(
+                subdomain, userId, requestId, method, path, queryString,
+                headersJson, storedBody, requestTruncated, requestSize, clientIp,
+                null, null, null, false, null,
+                startedAt, null, null, LogStatus.PENDING.value(), null, null,
+                isFull ? SubscriptionTier.LogDetail.FULL.name().toLowerCase()
+                        : SubscriptionTier.LogDetail.BASIC.name().toLowerCase()
+        ).map(RequestLog::getId);
     }
 
     public Mono<Void> completeCapture(UUID logId, HttpResponseMessage tunnelResponse, Instant completedAt) {

@@ -29,4 +29,5 @@ public class User {
     private Instant updatedAt;
     private Instant lastLoginAt;
     private Instant deletedAt;
+    private Boolean dataConsent;
 }
