@@ -5,7 +5,7 @@ import lombok.Getter;
 @Getter
 public enum SubscriptionTier {
 
-    CHELYS("chelys",     1,  0,  0,   100,  1,    LogDetail.BASIC),
+    CHELYS("chelys",     3,  0,  0,   100,  1,    LogDetail.BASIC),
     INVENTOR("inventor", 5,  3,  1,   1000, 72,   LogDetail.BASIC),
     PETASOS("petasos",   15, 5,  5,   5000, 720,  LogDetail.FULL),
     TALARIA("talaria",   -1, -1, -1,  -1,   -1,   LogDetail.FULL);
