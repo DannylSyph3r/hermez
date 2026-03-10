@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -160,8 +160,8 @@ public class OAuth2Handler {
                 .passwordHash(null)
                 .tier("chelys")
                 .emailVerified(true)
-                .createdAt(LocalDateTime.now())
-                .lastLoginAt(LocalDateTime.now())
+                .createdAt(Instant.now())
+                .lastLoginAt(Instant.now())
                 .build();
 
         return userRepository.save(user);
@@ -172,14 +172,14 @@ public class OAuth2Handler {
                 .userId(userId)
                 .provider(provider)
                 .providerId(providerId)
-                .createdAt(LocalDateTime.now())
+                .createdAt(Instant.now())
                 .build();
 
         return oauthConnectionRepository.save(connection);
     }
 
     private Mono<Void> updateLastLogin(User user) {
-        return userRepository.updateLastLoginAt(user.getId(), LocalDateTime.now());
+        return userRepository.updateLastLoginAt(user.getId(), Instant.now());
     }
 
     private String normalizeEmail(String email) {

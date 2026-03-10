@@ -6,7 +6,7 @@ import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Repository
@@ -18,7 +18,7 @@ public interface UserRepository extends ReactiveCrudRepository<User, UUID> {
 
     @Modifying
     @Query("UPDATE users SET last_login_at = :lastLoginAt WHERE id = :id")
-    Mono<Void> updateLastLoginAt(UUID id, LocalDateTime lastLoginAt);
+    Mono<Void> updateLastLoginAt(UUID id, Instant lastLoginAt);
 
     @Modifying
     @Query("UPDATE users SET email_verified = true WHERE id = :id")

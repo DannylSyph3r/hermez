@@ -21,7 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-import java.time.LocalDateTime;
+
+import java.time.Instant;
 import java.util.UUID;
 
 @Slf4j
@@ -213,7 +214,7 @@ public class SubdomainServiceImpl implements SubdomainService {
         SubdomainReservation reservation = SubdomainReservation.builder()
                 .subdomain(subdomain)
                 .userId(userId)
-                .createdAt(LocalDateTime.now())
+                .createdAt(Instant.now())
                 .build();
 
         return reservationRepository.save(reservation)

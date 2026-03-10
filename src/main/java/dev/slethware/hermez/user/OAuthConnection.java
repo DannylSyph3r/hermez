@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Data
@@ -24,6 +24,6 @@ public class OAuthConnection {
     private String providerId;
     private String accessToken;
     private String refreshToken;
-    private LocalDateTime tokenExpiresAt;
-    private LocalDateTime createdAt;
+    private Instant tokenExpiresAt;
+    private Instant createdAt;
 }

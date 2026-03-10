@@ -3,7 +3,7 @@ package dev.slethware.hermez.user.api;
 import dev.slethware.hermez.user.OAuthConnection;
 import dev.slethware.hermez.user.User;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,7 +21,7 @@ public record UserProfileResponse(
 ) {
     public record OAuthConnectionInfo(
             String provider,
-            LocalDateTime connectedAt
+            Instant connectedAt
     ) {
         public static OAuthConnectionInfo from(OAuthConnection connection) {
             return new OAuthConnectionInfo(

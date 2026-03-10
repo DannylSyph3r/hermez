@@ -19,7 +19,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
 
@@ -62,7 +62,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
                             .name(name)
                             .keyHash(keyHash)
                             .keyPreview(keyPreview)
-                            .createdAt(LocalDateTime.now())
+                            .createdAt(Instant.now())
                             .build();
 
                     return apiKeyRepository.save(apiKey)
@@ -96,7 +96,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
                     if (apiKey.getRevokedAt() != null) {
                         return Mono.error(new ConflictException("API key is already revoked"));
                     }
-                    apiKey.setRevokedAt(LocalDateTime.now());
+                    apiKey.setRevokedAt(Instant.now());
                     return apiKeyRepository.save(apiKey)
                             .then(redisTemplate.delete(REDIS_PREFIX + apiKey.getKeyHash()))
                             .doOnSuccess(v -> log.info("API key revoked and cache invalidated: keyId={}", keyId))
@@ -144,7 +144,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
                 .onErrorComplete()
                 .subscribe();
 
-        apiKey.setLastUsedAt(LocalDateTime.now());
+        apiKey.setLastUsedAt(Instant.now());
         apiKeyRepository.save(apiKey)
                 .publishOn(Schedulers.boundedElastic())
                 .doOnError(e -> log.warn("Failed to update last_used_at for keyId={}: {}", apiKey.getId(), e.getMessage()))

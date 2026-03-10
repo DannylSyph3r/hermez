@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Data
@@ -18,13 +18,13 @@ import java.util.UUID;
 public class CustomDomain {
 
     @Id
-    private UUID          id;
-    private UUID          userId;
-    private String        domain;
-    private String        linkedSubdomain;
-    private String        status;
-    private String        verificationToken;
-    private LocalDateTime verifiedAt;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private UUID   id;
+    private UUID   userId;
+    private String domain;
+    private String linkedSubdomain;
+    private String status;
+    private String verificationToken;
+    private Instant verifiedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 }

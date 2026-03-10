@@ -2,13 +2,13 @@ package dev.slethware.hermez.subdomain.api;
 
 import dev.slethware.hermez.subdomain.SubdomainReservation;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record SubdomainResponse(
         String subdomain,
         String publicUrl,
-        LocalDateTime createdAt,
-        LocalDateTime expiresAt,
+        Instant createdAt,
+        Instant expiresAt,
         boolean isActive,
         String tunnelId
 ) {

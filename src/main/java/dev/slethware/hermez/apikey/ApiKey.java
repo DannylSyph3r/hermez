@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Data
@@ -23,7 +23,7 @@ public class ApiKey {
     private String name;
     private String keyHash;
     private String keyPreview;
-    private LocalDateTime createdAt;
-    private LocalDateTime lastUsedAt;
-    private LocalDateTime revokedAt;
+    private Instant createdAt;
+    private Instant lastUsedAt;
+    private Instant revokedAt;
 }

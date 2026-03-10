@@ -2,20 +2,20 @@ package dev.slethware.hermez.domain.api;
 
 import dev.slethware.hermez.domain.CustomDomain;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record CustomDomainResponse(
-        UUID          id,
-        String        domain,
-        String        linkedSubdomain,
-        String        status,
-        String        txtRecordName,
-        String        txtRecordValue,
-        String        cnameTarget,
-        LocalDateTime verifiedAt,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        UUID    id,
+        String  domain,
+        String  linkedSubdomain,
+        String  status,
+        String  txtRecordName,
+        String  txtRecordValue,
+        String  cnameTarget,
+        Instant verifiedAt,
+        Instant createdAt,
+        Instant updatedAt
 ) {
     public static CustomDomainResponse from(CustomDomain domain,
                                             String txtRecordName,

@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Data
@@ -25,8 +25,8 @@ public class User {
     private String avatarUrl;
     private String tier;
     private boolean emailVerified;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private LocalDateTime lastLoginAt;
-    private LocalDateTime deletedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
+    private Instant lastLoginAt;
+    private Instant deletedAt;
 }

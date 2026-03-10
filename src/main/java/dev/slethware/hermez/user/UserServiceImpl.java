@@ -18,7 +18,6 @@ import reactor.core.publisher.Mono;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 
@@ -170,7 +169,7 @@ public class UserServiceImpl implements UserService {
                         .switchIfEmpty(Mono.error(new UnauthorizedException("User not found")))
                 )
                 .flatMap(user -> {
-                    user.setDeletedAt(LocalDateTime.now());
+                    user.setDeletedAt(Instant.now());
                     return userRepository.save(user);
                 })
                 .doOnSuccess(user -> log.info("User account soft deleted: {}", user.getEmail()))

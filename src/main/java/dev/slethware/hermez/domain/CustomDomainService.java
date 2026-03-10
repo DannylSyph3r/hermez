@@ -16,7 +16,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -62,8 +62,8 @@ public class CustomDomainService {
                                         .linkedSubdomain(linkedSubdomain)
                                         .status(DomainStatus.PENDING.value())
                                         .verificationToken(token)
-                                        .createdAt(LocalDateTime.now())
-                                        .updatedAt(LocalDateTime.now())
+                                        .createdAt(Instant.now())
+                                        .updatedAt(Instant.now())
                                         .build();
                                 return domainRepository.save(customDomain);
                             }));
@@ -83,15 +83,15 @@ public class CustomDomainService {
                                 log.info("Domain verified successfully: {}", domain.getDomain());
                                 domain.setStatus(DomainStatus.ACTIVE.value());
                                 if (domain.getVerifiedAt() == null) {
-                                    domain.setVerifiedAt(LocalDateTime.now());
+                                    domain.setVerifiedAt(Instant.now());
                                 }
-                                domain.setUpdatedAt(LocalDateTime.now());
+                                domain.setUpdatedAt(Instant.now());
                                 return domainRepository.save(domain)
                                         .flatMap(saved -> evictCache(saved.getDomain()).thenReturn(saved));
                             }
                             log.debug("DNS verification failed for domain: {}", domain.getDomain());
                             domain.setStatus(DomainStatus.FAILED.value());
-                            domain.setUpdatedAt(LocalDateTime.now());
+                            domain.setUpdatedAt(Instant.now());
                             return domainRepository.save(domain);
                         })
                 );
@@ -110,13 +110,16 @@ public class CustomDomainService {
                 .flatMap(domain -> {
                     String tunnelKey = "tunnel:" + domain.getLinkedSubdomain();
                     return redisTemplate.opsForValue().get(tunnelKey)
-                            .flatMap(json -> Mono.<Void>error(new ConflictException(
-                                    "Cannot delete domain with active tunnel. Close the tunnel first."
-                            )))
-                            .switchIfEmpty(
-                                    domainRepository.deleteById(domainId)
-                                            .then(evictCache(domain.getDomain()))
-                            );
+                            .hasElement()
+                            .flatMap(hasTunnel -> {
+                                if (hasTunnel) {
+                                    return Mono.error(new ConflictException(
+                                            "Cannot delete domain with active tunnel. Close the tunnel first."
+                                    ));
+                                }
+                                return domainRepository.deleteById(domainId)
+                                        .then(evictCache(domain.getDomain()));
+                            });
                 });
     }
 

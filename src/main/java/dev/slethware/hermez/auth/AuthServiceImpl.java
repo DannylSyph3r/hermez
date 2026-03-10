@@ -27,7 +27,7 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Slf4j
@@ -110,7 +110,7 @@ public class AuthServiceImpl implements AuthService {
                     }
 
                     return clearRateLimit(normalizedEmail)
-                            .then(userRepository.updateLastLoginAt(user.getId(), LocalDateTime.now()))
+                            .then(userRepository.updateLastLoginAt(user.getId(), Instant.now()))
                             .then(generateAuthResponse(user));
                 });
     }
