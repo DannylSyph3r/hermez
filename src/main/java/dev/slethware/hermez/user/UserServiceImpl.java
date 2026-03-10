@@ -16,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -178,17 +179,21 @@ public class UserServiceImpl implements UserService {
 
     private Mono<UserProfileResponse> buildProfileResponse(User user) {
         Instant startOfToday = LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant startOfYesterday = startOfToday.minus(Duration.ofDays(1));
+
         return Mono.zip(
                 subdomainReservationRepository.findByUserId(user.getId()).count(),
                 tunnelRegistry.listByUser(user.getId()).count(),
                 requestLogRepository.countByUserIdAndStartedAtAfter(user.getId(), startOfToday),
+                requestLogRepository.countByUserIdAndStartedAtBetween(user.getId(), startOfYesterday, startOfToday),
                 oauthConnectionRepository.findByUserId(user.getId()).collectList()
         ).map(tuple -> UserProfileResponse.from(
                 user,
                 tuple.getT1().intValue(),
                 tuple.getT2().intValue(),
                 tuple.getT3().intValue(),
-                tuple.getT4()
+                tuple.getT4().intValue(),
+                tuple.getT5()
         ));
     }
 }

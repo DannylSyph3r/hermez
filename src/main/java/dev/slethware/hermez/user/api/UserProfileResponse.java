@@ -17,6 +17,7 @@ public record UserProfileResponse(
         Integer reservedSubdomains,
         Integer activeTunnels,
         Integer requestsToday,
+        Integer requestsYesterday,
         List<OAuthConnectionInfo> oauthConnections
 ) {
     public record OAuthConnectionInfo(
@@ -36,6 +37,7 @@ public record UserProfileResponse(
             Integer reservedSubdomains,
             Integer activeTunnels,
             Integer requestsToday,
+            Integer requestsYesterday,
             List<OAuthConnection> connections
     ) {
         List<OAuthConnectionInfo> oauthInfos = connections.stream()
@@ -52,6 +54,7 @@ public record UserProfileResponse(
                 reservedSubdomains,
                 activeTunnels,
                 requestsToday,
+                requestsYesterday,
                 oauthInfos
         );
     }

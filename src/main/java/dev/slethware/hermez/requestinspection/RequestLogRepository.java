@@ -20,6 +20,9 @@ public interface RequestLogRepository extends ReactiveCrudRepository<RequestLog,
 
     Mono<Long> countByUserIdAndStartedAtAfter(UUID userId, Instant since);
 
+    @Query("SELECT COUNT(*) FROM request_logs WHERE user_id = :userId AND started_at >= :from AND started_at < :to")
+    Mono<Long> countByUserIdAndStartedAtBetween(UUID userId, Instant from, Instant to);
+
     Mono<RequestLog> findByIdAndTunnelIdAndUserId(UUID id, String tunnelId, UUID userId);
 
     @Query("INSERT INTO request_logs (tunnel_id, user_id, request_id, method, path, query_string, " +
