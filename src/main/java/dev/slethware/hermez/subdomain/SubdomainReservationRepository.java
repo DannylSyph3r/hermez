@@ -13,8 +13,12 @@ import java.util.UUID;
 public interface SubdomainReservationRepository extends ReactiveCrudRepository<SubdomainReservation, UUID> {
 
     Flux<SubdomainReservation> findByUserId(UUID userId);
-    Mono<SubdomainReservation> findBySubdomain(String subdomain);  // ← Add this
+    Mono<SubdomainReservation> findBySubdomain(String subdomain);
     Mono<Boolean> existsBySubdomain(String subdomain);
+
+    @Query("SELECT COUNT(*) FROM subdomain_reservations WHERE user_id = :userId")
+    Mono<Long> countByUserId(UUID userId);
+
     @Modifying
     @Query("DELETE FROM subdomain_reservations WHERE expires_at < NOW()")
     Mono<Integer> deleteExpired();

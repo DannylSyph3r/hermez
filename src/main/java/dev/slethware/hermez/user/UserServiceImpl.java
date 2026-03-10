@@ -196,7 +196,7 @@ public class UserServiceImpl implements UserService {
         Instant startOfYesterday = startOfToday.minus(Duration.ofDays(1));
 
         return Mono.zip(
-                subdomainReservationRepository.findByUserId(user.getId()).count(),
+                subdomainReservationRepository.countByUserId(user.getId()),
                 tunnelRegistry.listByUser(user.getId()).count(),
                 requestLogRepository.countByUserIdAndStartedAtAfter(user.getId(), startOfToday),
                 requestLogRepository.countByUserIdAndStartedAtBetween(user.getId(), startOfYesterday, startOfToday),

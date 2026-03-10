@@ -1,0 +1,1 @@
+CREATE INDEX idx_request_logs_user_started_at ON request_logs(user_id, started_at DESC);
