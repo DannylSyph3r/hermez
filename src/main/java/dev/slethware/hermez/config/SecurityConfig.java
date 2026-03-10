@@ -5,11 +5,14 @@ import dev.slethware.hermez.auth.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.ServerAuthenticationEntryPoint;
+import reactor.core.publisher.Mono;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -25,6 +28,9 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(jsonAuthenticationEntryPoint())
+                )
                 .addFilterAt(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .authorizeExchange(exchanges -> exchanges
                         // Public endpoints
@@ -58,5 +64,16 @@ public class SecurityConfig {
                         .anyExchange().authenticated()
                 )
                 .build();
+    }
+
+    private ServerAuthenticationEntryPoint jsonAuthenticationEntryPoint() {
+        return (exchange, ex) -> {
+            var response = exchange.getResponse();
+            response.setStatusCode(HttpStatus.UNAUTHORIZED);
+            response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+            var body = "{\"message\":\"Unauthorized\",\"error\":\"Unauthorized\",\"statusCode\":401}";
+            var buffer = response.bufferFactory().wrap(body.getBytes());
+            return response.writeWith(Mono.just(buffer));
+        };
     }
 }

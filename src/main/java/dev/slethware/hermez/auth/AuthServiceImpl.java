@@ -567,7 +567,7 @@ public class AuthServiceImpl implements AuthService {
                     // Delete token (one-time use)
                     return redisTemplate.delete(redisKey)
                             .then(oauth2Handler.handleGoogleLinkCallback(code, userId))
-                            .then(redirectToSettingsWithSuccess("google", httpRequest, response));
+                            .then(Mono.defer(() -> redirectToSettingsWithSuccess("google", httpRequest, response)));
                 })
                 .onErrorResume(error -> redirectToSettingsWithError(error.getMessage(), httpRequest, response));
     }
@@ -623,7 +623,7 @@ public class AuthServiceImpl implements AuthService {
                     // Delete token (one-time use)
                     return redisTemplate.delete(redisKey)
                             .then(oauth2Handler.handleGitHubLinkCallback(code, userId))
-                            .then(redirectToSettingsWithSuccess("github", httpRequest, response));
+                            .then(Mono.defer(() -> redirectToSettingsWithSuccess("github", httpRequest, response)));
                 })
                 .onErrorResume(error -> redirectToSettingsWithError(error.getMessage(), httpRequest, response));
     }
