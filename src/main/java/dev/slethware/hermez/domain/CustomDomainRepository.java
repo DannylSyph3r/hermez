@@ -16,4 +16,6 @@ public interface CustomDomainRepository extends ReactiveCrudRepository<CustomDom
     Mono<CustomDomain> findByUserIdAndDomain(UUID userId, String domain);
     @Query("SELECT COUNT(*) FROM custom_domains WHERE user_id = :userId AND status != :status")
     Mono<Long> countByUserIdAndStatusNot(UUID userId, String status);
+    @Query("SELECT EXISTS(SELECT 1 FROM custom_domains WHERE linked_subdomain = :subdomain AND status = 'active')")
+    Mono<Boolean> existsActiveByLinkedSubdomain(String subdomain);
 }

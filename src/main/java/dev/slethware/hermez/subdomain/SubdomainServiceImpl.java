@@ -3,6 +3,7 @@ package dev.slethware.hermez.subdomain;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.slethware.hermez.config.HermezConfigProperties;
+import dev.slethware.hermez.domain.CustomDomainRepository;
 import dev.slethware.hermez.exception.BadRequestException;
 import dev.slethware.hermez.exception.ConflictException;
 import dev.slethware.hermez.exception.ForbiddenException;
@@ -30,6 +31,7 @@ public class SubdomainServiceImpl implements SubdomainService {
 
     private final SubdomainValidator validator;
     private final SubdomainReservationRepository reservationRepository;
+    private final CustomDomainRepository customDomainRepository;
     private final UserRepository userRepository;
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
@@ -109,18 +111,25 @@ public class SubdomainServiceImpl implements SubdomainService {
                         return Mono.error(new ForbiddenException("You do not own this subdomain"));
                     }
 
-                    // Check if subdomain has active tunnel
-                    return checkIfActive(reservation)
-                            .flatMap(activeInfo -> {
-                                if (activeInfo.isActive()) {
+                    // Check for active custom domain linked to this subdomain
+                    return customDomainRepository.existsActiveByLinkedSubdomain(subdomain)
+                            .flatMap(hasActiveDomain -> {
+                                if (hasActiveDomain) {
                                     return Mono.error(new ConflictException(
-                                            "Cannot release subdomain with active tunnel. Close the tunnel first."
-                                    ));
+                                            "Cannot release subdomain with an active custom domain linked."));
                                 }
-                                return reservationRepository.delete(reservation);
+
+                                // Check if subdomain has an active tunnel
+                                return checkIfActive(reservation)
+                                        .flatMap(activeInfo -> {
+                                            if (activeInfo.isActive()) {
+                                                return Mono.error(new ConflictException(
+                                                        "Cannot release subdomain with active tunnel."));
+                                            }
+                                            return reservationRepository.deleteById(reservation.getId());
+                                        });
                             });
-                })
-                .doOnSuccess(v -> log.info("Subdomain released successfully: {}", subdomain));
+                });
     }
 
     @Override
